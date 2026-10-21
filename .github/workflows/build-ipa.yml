@@ -1,0 +1,65 @@
+name: 构建晓米记账 IPA
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 XcodeGen
+        run: brew install xcodegen
+
+      - name: 生成 Xcode 工程
+        run: xcodegen generate
+
+      - name: 编译（不签名）
+        run: |
+          xcodebuild \
+            -project XiaomiJizhang.xcodeproj \
+            -scheme XiaomiJizhang \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            MARKETING_VERSION=1.0.${{ github.run_number }} \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build > build.log 2>&1 || { tail -n 150 build.log; exit 1; }
+          tail -n 5 build.log
+
+      - name: 打包 IPA
+        run: |
+          APP="build/Build/Products/Release-iphoneos/XiaomiJizhang.app"
+          test -d "$APP"
+          rm -rf Payload && mkdir Payload
+          cp -R "$APP" Payload/
+          zip -qry XiaomiJizhang.ipa Payload
+          echo "== IPA 内容 =="
+          unzip -l XiaomiJizhang.ipa | head -40
+          echo "== Info.plist =="
+          plutil -p "$APP/Info.plist" | head -40
+          ls -la XiaomiJizhang.ipa
+
+      - name: 保存构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: XiaomiJizhang-ipa
+          path: XiaomiJizhang.ipa
+
+      - name: 发布到 Releases（手机可直接下载）
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="v1.0.${{ github.run_number }}"
+          gh release create "$TAG" XiaomiJizhang.ipa \
+            --title "晓米记账 $TAG" \
+            --notes "未签名 IPA，用全能签导入后签名安装。更新安装时请保持包名不变，数据会保留。" \
+            --latest

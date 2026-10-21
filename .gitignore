@@ -1,0 +1,7 @@
+build/
+*.xcodeproj
+Payload/
+*.ipa
+.DS_Store
+tools/icon-1024.png
+__pycache__/

@@ -1,0 +1,30 @@
+name: XiaomiJizhang
+options:
+  bundleIdPrefix: com.xiaomijizhang
+  deploymentTarget:
+    iOS: "15.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  XiaomiJizhang:
+    type: application
+    platform: iOS
+    sources:
+      - path: ios/Sources
+      - path: ios/Assets.xcassets
+      - path: www
+        type: folder
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.xiaomijizhang.app
+        PRODUCT_NAME: XiaomiJizhang
+        INFOPLIST_FILE: ios/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ENABLE_BITCODE: NO
