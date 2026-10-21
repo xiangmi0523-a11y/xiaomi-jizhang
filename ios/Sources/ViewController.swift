@@ -1,8 +1,11 @@
 import UIKit
 import WebKit
+import SwiftUI
+import WidgetKit
 
 final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigationDelegate {
     private var webView: WKWebView!
+    private var pageReady = false
     private let ioQueue = DispatchQueue(label: "xiaomi.io", qos: .utility)
 
     private var dataFileURL: URL {
@@ -46,6 +49,9 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
         ])
         webView = web
 
+        NotificationCenter.default.addObserver(self, selector: #selector(handleQuickAdd),
+                                               name: .xmQuickAdd, object: nil)
+
         if let url = URL(string: "\(LocalSchemeHandler.scheme)://app/index.html") {
             web.load(URLRequest(url: url))
         }
@@ -57,6 +63,22 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
             return "window.__NATIVE_APP__ = true;"
         }
         return "window.__NATIVE_APP__ = true; window.__NATIVE_B64__ = \"\(data.base64EncodedString())\";"
+    }
+
+    // MARK: - 快速记一笔（小组件 / 快捷指令）
+
+    @objc private func handleQuickAdd() {
+        guard pageReady else { return }   // 页面还没加载好，等 didFinish 再处理
+        if QuickAction.shared.consume() {
+            presentedViewController?.dismiss(animated: false)
+            webView.evaluateJavaScript("window.App && App.quickAdd && App.quickAdd()", completionHandler: nil)
+        }
+    }
+
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        pageReady = true
+        // 等网页初始化完再弹记账面板
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in self?.handleQuickAdd() }
     }
 
     // MARK: - JS -> 原生
@@ -77,6 +99,10 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
             case "light": overrideUserInterfaceStyle = .light
             default: overrideUserInterfaceStyle = .unspecified
             }
+        case "widget":
+            if let text = body["data"] as? String { updateWidget(text) }
+        case "chart":
+            if let text = body["data"] as? String { presentChart(text) }
         default:
             break
         }
@@ -87,6 +113,31 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
         ioQueue.async {
             try? Data(text.utf8).write(to: url, options: .atomic)
         }
+    }
+
+    /// 把预算/猫咪摘要写进 App Group，刷新桌面小组件（签名证书不支持 App Group 时小组件会显示“打开 App 同步”）
+    private var lastWidgetJSON = ""
+    private func updateWidget(_ json: String) {
+        let stable = json.replacingOccurrences(of: #""updated":\d+(\.\d+)?"#, with: "", options: .regularExpression)
+        guard stable != lastWidgetJSON else { return }
+        lastWidgetJSON = stable
+        XMShared.defaults?.set(Data(json.utf8), forKey: XMShared.widgetKey)
+        WidgetCenter.shared.reloadTimelines(ofKind: XMShared.widgetKind)
+    }
+
+    /// Swift Charts 马卡龙饼图
+    private func presentChart(_ json: String) {
+        guard let payload = try? JSONDecoder().decode(ChartPayload.self, from: Data(json.utf8)),
+              !payload.items.isEmpty else { return }
+        let host = UIHostingController(rootView: ChartSheetHost(payload: payload, onClose: { [weak self] in
+            self?.dismiss(animated: true)
+        }))
+        host.modalPresentationStyle = .pageSheet
+        if let sheet = host.sheetPresentationController {
+            sheet.detents = [.large()]
+            sheet.prefersGrabberVisible = true
+        }
+        present(host, animated: true)
     }
 
     private func shareFile(name: String, content: String) {
@@ -103,7 +154,7 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
         present(sheet, animated: true)
     }
 
-    // MARK: - 导航：只允许内置页面，外部链接交给系统
+    // MARK: - 导航：只允许内置页面
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
                  decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {

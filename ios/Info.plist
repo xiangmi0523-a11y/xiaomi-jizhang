@@ -35,6 +35,17 @@
 		<key>UIColorName</key>
 		<string>LaunchBG</string>
 	</dict>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.xiaomijizhang.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>xiaomijz</string>
+			</array>
+		</dict>
+	</array>
 	<key>UIFileSharingEnabled</key>
 	<true/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>

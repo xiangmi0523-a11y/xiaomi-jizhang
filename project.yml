@@ -15,10 +15,15 @@ targets:
     platform: iOS
     sources:
       - path: ios/Sources
+      - path: ios/Shared
       - path: ios/Assets.xcassets
       - path: www
         type: folder
         buildPhase: resources
+    dependencies:
+      - target: XiaomiWidget
+        embed: true
+        codeSign: false
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.xiaomijizhang.app
@@ -28,3 +33,19 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ENABLE_BITCODE: NO
+  XiaomiWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: ios/Widget
+      - path: ios/Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.xiaomijizhang.app.widget
+        PRODUCT_NAME: XiaomiWidget
+        INFOPLIST_FILE: ios/WidgetInfo.plist
+        GENERATE_INFOPLIST_FILE: NO
+        TARGETED_DEVICE_FAMILY: "1"
+        SKIP_INSTALL: YES
+        ENABLE_BITCODE: NO
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"

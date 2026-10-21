@@ -111,7 +111,7 @@
     records: [],
     budget: { total: 0, cats: {} },
     recurring: [],
-    game: { coins: 100, signed: [], progress: 0, cats: {}, inn: { slots: {}, owned: [] } },
+    game: { coins: 100, signed: [], progress: 0, cats: {}, inn: { slots: {}, owned: [] }, themes: [] },
     settings: { theme: 'millet', mode: 'auto', weekStart: 1, pin: '', lastAcc: '' }
   });
 
@@ -125,6 +125,7 @@
     out.game = Object.assign({}, d.game, s.game || {});
     if (!Array.isArray(out.game.signed)) out.game.signed = [];
     if (!out.game.cats || typeof out.game.cats !== 'object' || Array.isArray(out.game.cats)) out.game.cats = {};
+    if (!Array.isArray(out.game.themes)) out.game.themes = [];
     const inn = out.game.inn && typeof out.game.inn === 'object' ? out.game.inn : {};
     out.game.inn = { slots: inn.slots && typeof inn.slots === 'object' && !Array.isArray(inn.slots) ? inn.slots : {}, owned: Array.isArray(inn.owned) ? inn.owned : [] };
     ['coins', 'progress'].forEach(k => { out.game[k] = Number.isFinite(out.game[k]) ? Math.max(0, Math.floor(out.game[k])) : d.game[k]; });
@@ -285,6 +286,6 @@
     const st = App.S.settings, el = document.documentElement;
     el.setAttribute('data-theme', App.THEMES[st.theme] ? st.theme : 'millet');
     el.setAttribute('data-mode', ['auto', 'light', 'dark'].includes(st.mode) ? st.mode : 'auto');
-    App.native('mode', { value: st.mode });
+    App.native('mode', { value: App.THEMES[st.theme] && App.THEMES[st.theme].dark ? 'dark' : st.mode });
   };
 })();

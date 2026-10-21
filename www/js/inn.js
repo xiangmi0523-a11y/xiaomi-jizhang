@@ -121,8 +121,10 @@
       <div class="seg on-accent inn-seg">
         <button data-act="innSub" data-v="scene" class="${I.sub === 'scene' ? 'on' : ''}">🏠 客栈</button>
         <button data-act="innSub" data-v="dex" class="${I.sub === 'dex' ? 'on' : ''}">📖 图鉴 ${n}/${App.cats.LIST.length}</button>
+        <button data-act="innSub" data-v="theme" class="${I.sub === 'theme' ? 'on' : ''}">🎨 主题</button>
       </div></div>`;
     if (I.sub === 'dex') return head + `<div class="body">${App.cats.dexBodyHTML()}</div>`;
+    if (I.sub === 'theme') return head + `<div class="body">${App.themes.storeHTML()}</div>`;
     return head + `<div class="body">${sceneHTML()}${actHTML()}
       <div class="inn-info"><span>🛋️ 家具 ${placed}/${I.SLOTS.length}</span><span>🐾 入住猫咪 ${Math.min(n, SPOTS.length)} 只</span></div>
       <p class="muted center pad">点空位去商店买家具，点已摆的家具可以更换<br>点一下猫咪听它说话，还能喂罐头；连续 3 天不记账，猫咪会饿得睡着</p></div>`;

@@ -66,6 +66,19 @@
     document.body.appendChild(el);
   };
 
+  // 给桌面小组件的摘要（金额单位：元）
+  B.widgetData = () => {
+    const ym = U.curYM(), total = App.S.budget.total;
+    const spent = App.sum(App.recordsByMonth(ym)).expense;
+    const id = B.catId(), c = App.cats.byId(id);
+    return {
+      hasBudget: total > 0, budget: total / 100, spent: spent / 100, remain: (total - spent) / 100,
+      level: B.level(spent, total), catId: id, catName: c ? c.name : '橘子',
+      sleeping: !!(App.mood && App.S.game.cats[id] && App.mood.isSleeping(id)),
+      coins: App.S.game.coins, monthLabel: U.ymLabel(ym), updated: Date.now()
+    };
+  };
+
   B.check = () => {
     const total = App.S.budget.total;
     const ym = U.curYM();

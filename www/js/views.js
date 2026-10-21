@@ -3,7 +3,9 @@
   'use strict';
   const App = window.App, U = App.U, UI = App.UI, esc = U.esc, money = U.money;
   const A = App.A;
-  const PALETTE = ['#FF8A5B', '#FFC53D', '#5CD6A0', '#6CB6FF', '#A78BFA', '#FF8FAB', '#4DC3C3', '#B5CC4A', '#E58AD1', '#8FA3B8', '#F2A65A'];
+  // 马卡龙色系
+  const PALETTE = ['#FFB3C7', '#A8E6CF', '#FFD3A5', '#B5D8FF', '#D7BCFF', '#FFE89A', '#B8F0EA', '#FFC1A1', '#CFEFB0', '#F6C6EA', '#E5DCCF'];
+  App.PALETTE = PALETTE;
 
   /* ================= 公共：记录行 / 月份选择 ================= */
   App.recRow = (r, o = {}) => {
@@ -206,7 +208,8 @@
       off += len;
     });
     const unit = T.type === 'expense' ? '支出' : '收入';
-    return `<svg class="donut" viewBox="0 0 120 120">${segs}<text x="60" y="55" class="dl">总${unit}</text><text x="60" y="71" class="dv">${U.cell(d.total)}</text></svg>`;
+    const rings = d.total ? '<circle cx="60" cy="60" r="50" fill="none" stroke="#3B2A00" stroke-width="1.6" opacity=".55"/><circle cx="60" cy="60" r="34" fill="none" stroke="#3B2A00" stroke-width="1.6" opacity=".55"/>' : '';
+    return `<svg class="donut" viewBox="0 0 120 120">${segs}${rings}<text x="60" y="55" class="dl">总${unit}</text><text x="60" y="71" class="dv">${U.cell(d.total)}</text></svg>`;
   };
 
   const statsRender = () => {
@@ -236,8 +239,17 @@
           `<div class="bar thin"><i style="width:${Math.max(3, Math.round(c.sum / top * 100))}%;background:${PALETTE[i] || '#C9C2B4'}"></i></div></div></div>`;
       }).join('');
     }
-    const cats = `<div class="card pad"><div class="card-title">分类占比</div>${d.cats.length ? `<div class="donut-wrap">${donut(d)}</div>` : ''}${rank}</div>`;
+    const nativeBtn = window.__NATIVE_APP__ && d.cats.length ? '<button class="mini-btn" data-act="nativeChart">✨ 立体饼图</button>' : '';
+    const cats = `<div class="card pad"><div class="card-title row">分类占比${nativeBtn}</div>${d.cats.length ? `<div class="donut-wrap">${donut(d)}</div>` : ''}${rank}</div>`;
     return hero + `<div class="body">${types}${tiles}${trend}${cats}</div>`;
+  };
+
+  // 打开 Swift Charts 原生饼图（马卡龙色）
+  A.nativeChart = () => {
+    const d = statsData(), unit = T.type === 'expense' ? '支出' : '收入';
+    const period = T.scope === 'month' ? U.ymLabel(T.ym) : T.year + '年';
+    const items = d.cats.map((c, i) => ({ id: c.id, name: App.cat(c.id).name, amount: c.sum / 100, color: PALETTE[i] || '#E5DCCF' }));
+    App.native('chart', { data: JSON.stringify({ title: period + ' ' + unit + '分类', total: d.total / 100, unit, items }) });
   };
 
   A.statScope = el => { T.scope = el.dataset.v; T.focus = -1; App.render(false); };

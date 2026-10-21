@@ -39,7 +39,7 @@ jobs:
             CURRENT_PROJECT_VERSION=${{ github.run_number }} \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
             build > build.log 2>&1 || {
-            grep -E "error:|BUILD FAILED|fatal" build.log | head -12 | while IFS= read -r line; do echo "::error::${line}"; done
+            grep -E "error:|BUILD FAILED|fatal" build.log | sort -u | head -20 | while IFS= read -r line; do echo "::error::${line}"; done
             tail -n 80 build.log
             exit 1
           }
@@ -51,6 +51,16 @@ jobs:
           test -d "$APP"
           rm -rf Payload && mkdir Payload
           cp -R "$APP" Payload/
+          # 用 ad-hoc 签名把 App Group 权限写进包里，方便全能签重签时保留（小组件读取数据要用）
+          PA="Payload/XiaomiJizhang.app"
+          if [ -d "$PA/PlugIns/XiaomiWidget.appex" ]; then
+            codesign --force --sign - --entitlements ios/XiaomiWidget.entitlements "$PA/PlugIns/XiaomiWidget.appex"
+          fi
+          codesign --force --sign - --entitlements ios/XiaomiJizhang.entitlements "$PA"
+          echo "::notice::包内容 $(cd "$PA" && ls | tr '\n' ' ')"
+          echo "::notice::插件 $(ls "$PA/PlugIns" 2>/dev/null | tr '\n' ' ')"
+          echo "::notice::App 权限 $(codesign -d --entitlements - --xml "$PA" 2>/dev/null | tr -d '\n\t' | head -c 600)"
+          echo "::notice::小组件权限 $(codesign -d --entitlements - --xml "$PA/PlugIns/XiaomiWidget.appex" 2>/dev/null | tr -d '\n\t' | head -c 600)"
           zip -qry XiaomiJizhang.ipa Payload
           echo "== IPA 内容 =="
           unzip -l XiaomiJizhang.ipa | head -40

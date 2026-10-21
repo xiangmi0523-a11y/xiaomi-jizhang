@@ -32,7 +32,7 @@
           ${row('openSecurity', '🔒', '密码锁', S.settings.pin ? '已开启' : '未开启')}
           ${row('openData', '💾', '数据与备份', '导出、导入、清空')}
         </div>
-        <div class="card list menu">${row('openAbout', '🌾', '关于晓米记账', 'v1.5')}</div>
+        <div class="card list menu">${row('openAbout', '🌾', '关于晓米记账', 'v1.6')}</div>
       </div>`;
   };
   App.views.mine = { render: mineRender };
@@ -237,7 +237,8 @@
         const st = S.settings;
         return `<div class="form">
           <div class="card-title">主题色</div>
-          <div class="swatches">${Object.keys(App.THEMES).map(k => `<button class="sw${st.theme === k ? ' on' : ''}" data-lk="theme" data-v="${k}"><i style="background:${App.THEMES[k].c}"></i><span>${App.THEMES[k].n}</span></button>`).join('')}</div>
+          <div class="swatches">${Object.keys(App.THEMES).map(k => `<button class="sw${st.theme === k ? ' on' : ''}${App.themes.owned(k) ? '' : ' locked'}" data-lk="theme" data-v="${k}"><i style="background:${App.THEMES[k].c}">${App.themes.owned(k) ? '' : '🔒'}</i><span>${App.THEMES[k].n}</span></button>`).join('')}</div>
+          <p class="hint">带 🔒 的限定主题可以在「客栈 → 主题」用金币解锁</p>
           <div class="card-title pad-t">深浅模式</div>
           <div class="seg wide">${[['auto', '跟随系统'], ['light', '浅色'], ['dark', '深色']].map(m => `<button data-lk="mode" data-v="${m[0]}" class="${st.mode === m[0] ? 'on' : ''}">${m[1]}</button>`).join('')}</div>
           <div class="card-title pad-t">每周从哪天开始</div>
@@ -248,7 +249,7 @@
         h.body.addEventListener('click', e => {
           const b = e.target.closest('[data-lk]'); if (!b) return;
           const st = S.settings, v = b.dataset.v;
-          if (b.dataset.lk === 'theme') st.theme = v;
+          if (b.dataset.lk === 'theme') { if (!App.themes.owned(v)) { UI.toast('这是限定主题，去「客栈 → 主题」用金币解锁吧', 2200); return; } st.theme = v; }
           else if (b.dataset.lk === 'mode') st.mode = v;
           else st.weekStart = +v;
           App.applyTheme(); App.changed(); h.update();
@@ -324,7 +325,7 @@
   A.openAbout = () => {
     UI.sheet({
       title: '关于', cls: 'compact',
-      render: () => `<div class="about"><div class="avatar big">${App.catArt.svg('n1', { head: true, w: 70, mood: 'happy' })}</div><h3>晓米记账</h3><p class="muted">v1.5 · 给自己用的小账本</p>
+      render: () => `<div class="about"><div class="avatar big">${App.catArt.svg('n1', { head: true, w: 70, mood: 'happy' })}</div><h3>晓米记账</h3><p class="muted">v1.6 · 给自己用的小账本</p>
         <p>所有数据只存在这台手机里，没有账号、没有联网、没有广告。</p>
         <p class="muted">记一笔 · 明细日历 · 统计图表 · 资产账户 · 预算 · 周期记账 · 备份导出</p></div>`
     });
