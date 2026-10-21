@@ -5,11 +5,11 @@
   const A = App.A;
 
   /* ---------- 底部导航 ---------- */
-  const TABS = [['home', '明细'], ['stats', '统计'], ['add', ''], ['assets', '资产'], ['mine', '我的']];
+  const TABS = [['home', '明细'], ['stats', '统计'], ['add', ''], ['dex', '图鉴'], ['mine', '我的']];
   const renderTabbar = () => {
     document.getElementById('tabbar').innerHTML = TABS.map(t => t[0] === 'add'
       ? `<button class="tab-add" data-act="add" aria-label="记一笔">${UI.icons.plus}</button>`
-      : `<button class="tab${App.tab === t[0] ? ' on' : ''}" data-act="tab" data-t="${t[0]}">${UI.icons[t[0]]}<span>${t[1]}</span></button>`).join('');
+      : `<button class="tab${(App.tab === t[0] || (t[0] === 'mine' && App.tab === 'assets')) ? ' on' : ''}" data-act="tab" data-t="${t[0]}">${UI.icons[t[0]]}<span>${t[1]}</span></button>`).join('');
   };
 
   App.render = keep => {

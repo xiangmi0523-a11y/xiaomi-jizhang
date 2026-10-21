@@ -312,14 +312,13 @@ button:disabled { opacity: .35; }
 .hero-actions { align-items: center; }
 .coin-pill {
   display: inline-flex; align-items: center; gap: 4px; height: 30px; padding: 0 11px 0 7px; margin-right: 6px;
-  border-radius: 999px; background: #fff; color: #3B2A00; border: 2px solid #3B2A00;
-  box-shadow: 0 2px 0 #3B2A00; font-weight: 800; font-size: 15px; font-variant-numeric: tabular-nums;
+  border-radius: 999px; background: linear-gradient(180deg, #FFFDF2, #FFF1C4); color: #7A4A00; border: 2px solid #3B2A00;
+  box-shadow: 0 2px 0 #3B2A00; font-weight: 900; font-size: 15px; font-variant-numeric: tabular-nums;
 }
-.coin-pill .coin-ico { font-size: 17px; line-height: 1; }
 .coin-pill:active { transform: translateY(1px); box-shadow: 0 1px 0 #3B2A00; }
 .coin-pill.bump { animation: coinBump .45s; }
 @keyframes coinBump { 0% { transform: scale(1); } 35% { transform: scale(1.24); } 100% { transform: scale(1); } }
-.coin-fly { position: fixed; z-index: 95; width: 22px; height: 22px; margin: -11px 0 0 -11px; font-size: 22px; line-height: 22px; pointer-events: none; will-change: transform; }
+.coin-fly { position: fixed; z-index: 95; --s: 26px; margin: -13px 0 0 -13px; pointer-events: none; will-change: transform; }
 #toast.gold { background: linear-gradient(135deg, #FFE27A, #FFB020); color: #3B2A00; font-weight: 800; border: 2px solid #3B2A00; box-shadow: 0 3px 0 #3B2A00; }
 
 .sign-fab {
@@ -370,3 +369,165 @@ button:disabled { opacity: .35; }
 .sg-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #3B2A00; }
 .sg-btn.off { opacity: 1; background: #D8D2C2; color: #8C8372; border-color: #A39B87; box-shadow: 0 4px 0 #A39B87; text-shadow: none; }
 .sg-tip { margin: 10px 0 0; text-align: center; font-size: 12px; color: #6B5A2E; }
+
+/* ----- 立体金币 ----- */
+.gcoin {
+  --s: 18px; position: relative; display: inline-grid; place-items: center; flex: 0 0 auto; vertical-align: -0.2em;
+  width: var(--s); height: var(--s); border-radius: 50%; overflow: hidden;
+  background: radial-gradient(circle at 34% 28%, #FFFBD6 0%, #FFE57A 18%, #FFC928 42%, #E9A300 70%, #B97800 100%);
+  box-shadow: inset 0 0 0 calc(var(--s) * .07) #A86A00, inset 0 0 0 calc(var(--s) * .15) #FFD84A,
+    inset 0 calc(var(--s) * -.08) calc(var(--s) * .12) rgba(150, 90, 0, .55), 0 1px 1.5px rgba(80, 45, 0, .45);
+}
+.gcoin::before {
+  content: '¥'; font: 900 calc(var(--s) * .56)/1 -apple-system, "PingFang SC", "Helvetica Neue", sans-serif; color: #B87400;
+  text-shadow: 0 calc(var(--s) * .04) 0 #FFF0A0, 0 calc(var(--s) * -.03) 0 rgba(110, 60, 0, .45); margin-top: calc(var(--s) * .02);
+}
+.gcoin::after {
+  content: ''; position: absolute; inset: 0; border-radius: 50%;
+  background: linear-gradient(115deg, transparent 32%, rgba(255, 255, 255, .85) 46%, transparent 60%);
+  transform: translateX(-130%); animation: coinShine 3.4s ease-in-out infinite;
+}
+@keyframes coinShine { 0%, 62% { transform: translateX(-130%); } 100% { transform: translateX(130%); } }
+
+/* ===== 阶段二：猫咪盲盒 + 图鉴 ===== */
+.hero-back { display: flex; align-items: center; gap: 2px; margin-left: -10px; }
+.asset-card { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 16px; background: linear-gradient(135deg, var(--card), var(--chip)); }
+.ac-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.ac-main span { font-size: 13px; color: var(--sub); }
+.ac-main b { font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.ac-main small { font-size: 12px; color: var(--sub); }
+.asset-card .mr { color: var(--sub); display: grid; }
+.asset-card .mr svg { width: 18px; height: 18px; }
+
+/* 首页盲盒卡片 */
+.box-card {
+  position: relative; overflow: hidden; display: flex; align-items: center; gap: 12px; padding: 10px 12px; margin-bottom: 12px;
+  background: var(--card); border: 2.5px solid #3B2A00; border-radius: 20px; box-shadow: 0 3px 0 #3B2A00;
+}
+.box-card:active { transform: translateY(2px); box-shadow: 0 1px 0 #3B2A00; }
+.bx-art { width: 58px; height: 58px; flex: 0 0 auto; }
+.bx-art svg { width: 100%; height: 100%; overflow: visible; }
+.bx-main { flex: 1; min-width: 0; }
+.bx-main b { font-size: 16px; font-weight: 900; }
+.bx-main b em { font-style: normal; font-size: 12px; font-weight: 700; color: var(--sub); margin-left: 4px; }
+.bx-main > span { display: block; font-size: 12px; color: var(--sub); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bx-dots { display: flex; align-items: center; gap: 4px; margin-top: 6px; }
+.bx-dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--line); border: 1.5px solid #3B2A00; }
+.bx-dots i.on { background: #FF7A8A; }
+.bx-dots small { margin-left: 6px; font-size: 11px; color: var(--sub); }
+.bx-btn { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 3px; padding: 8px 12px; border-radius: 14px; font-weight: 900; font-size: 14px; background: #E6E0D2; color: #8C8372; border: 2px solid #A39B87; }
+.box-card.ready { box-shadow: 0 3px 0 #3B2A00, 0 0 20px rgba(255, 197, 61, .55); }
+.box-card.ready .bx-btn { background: linear-gradient(180deg, #FFE98F, #FFB020); color: #5A3A00; border-color: #3B2A00; animation: btnGlow 1.6s ease-in-out infinite; }
+.box-card.ready .bx-art { animation: boxWiggle 2.4s ease-in-out infinite; }
+.box-card.ready::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(110deg, transparent 35%, rgba(255, 255, 255, .6) 50%, transparent 65%); transform: translateX(-120%); animation: cardShine 3s ease-in-out infinite; }
+@keyframes btnGlow { 0%, 100% { box-shadow: 0 2px 0 #3B2A00, 0 0 0 0 rgba(255, 190, 40, 0); } 50% { box-shadow: 0 2px 0 #3B2A00, 0 0 16px 5px rgba(255, 190, 40, .8); } }
+@keyframes boxWiggle { 0%, 70%, 100% { transform: rotate(0); } 75% { transform: rotate(-9deg); } 82% { transform: rotate(8deg); } 89% { transform: rotate(-5deg); } 95% { transform: rotate(3deg); } }
+@keyframes cardShine { 0%, 55% { transform: translateX(-120%); } 100% { transform: translateX(120%); } }
+
+/* 开盒全屏动画 */
+.gacha {
+  position: fixed; inset: 0; z-index: 96; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden;
+  padding: var(--safe-top) 20px var(--safe-bottom); color: #fff; opacity: 0; transition: opacity .25s;
+  background: radial-gradient(circle at 50% 40%, #5B3F8C 0%, #2B1D4A 55%, #140D26 100%);
+}
+.gacha.show { opacity: 1; }
+.gacha.out { opacity: 0; }
+.gc-tip { position: absolute; top: calc(var(--safe-top) + 18px); left: 0; right: 0; text-align: center; font-size: 13px; color: rgba(255, 255, 255, .6); }
+.gc-stage { position: relative; width: 240px; height: 260px; flex: 0 0 auto; }
+.gc-box { position: absolute; left: 20px; bottom: 0; width: 200px; height: 200px; transform-origin: 50% 92%; }
+.gc-box svg { width: 100%; height: 100%; overflow: visible; }
+.mb-lid { transform-box: fill-box; transform-origin: 50% 100%; }
+.gc-paw { position: absolute; left: 62px; top: -260px; width: 116px; opacity: 0; z-index: 3; }
+.gc-paw svg { width: 100%; display: block; overflow: visible; }
+.gacha.press .gc-paw { animation: pawPress .85s ease-in-out forwards; }
+.gacha.press .gc-box { animation: boxSquish .5s .38s ease-out; }
+.gacha.shake .gc-box { animation: boxShake .95s ease-in-out; }
+.gacha.open .gc-box { animation: boxAway .55s .25s ease-in forwards; }
+.gacha.open .mb-lid { animation: lidOff .6s ease-out forwards; }
+@keyframes pawPress { 0% { opacity: 0; transform: translateY(-40px); } 15% { opacity: 1; } 45% { transform: translateY(165px); } 58% { transform: translateY(184px); } 72% { transform: translateY(168px); opacity: 1; } 100% { transform: translateY(-90px); opacity: 0; } }
+@keyframes boxSquish { 0% { transform: scale(1); } 40% { transform: scale(1.08, .84); } 72% { transform: scale(.96, 1.06); } 100% { transform: scale(1); } }
+@keyframes boxShake {
+  0%, 100% { transform: rotate(0); } 10% { transform: rotate(-5deg); } 20% { transform: rotate(5deg); } 30% { transform: rotate(-7deg); }
+  40% { transform: rotate(7deg); } 50% { transform: rotate(-9deg) translateY(-4px); } 60% { transform: rotate(9deg) translateY(-6px); }
+  70% { transform: rotate(-11deg) translateY(-8px); } 80% { transform: rotate(11deg) translateY(-10px); } 90% { transform: rotate(-6deg) translateY(-4px); }
+}
+@keyframes lidOff { to { transform: translate(-40px, -170px) rotate(-38deg); opacity: 0; } }
+@keyframes boxAway { to { transform: translateY(40px) scale(.8); opacity: 0; } }
+
+.gc-rays {
+  position: absolute; left: 50%; top: 42%; width: 760px; height: 760px; margin: -380px 0 0 -380px; border-radius: 50%; opacity: 0; scale: .3; pointer-events: none;
+  background: repeating-conic-gradient(from 0deg, rgba(255, 214, 90, .55) 0deg 9deg, transparent 9deg 22.5deg);
+  -webkit-mask: radial-gradient(circle, #000 0%, rgba(0, 0, 0, .7) 30%, transparent 64%); mask: radial-gradient(circle, #000 0%, rgba(0, 0, 0, .7) 30%, transparent 64%);
+}
+.gacha.open .gc-rays { opacity: 1; scale: 1; transition: opacity .4s, scale .7s cubic-bezier(.2, .9, .3, 1); animation: raySpin 12s linear infinite; }
+.gacha.r-N.open .gc-rays { opacity: .55; }
+.gacha.r-SR .gc-rays { background: repeating-conic-gradient(from 0deg, rgba(255, 200, 40, .85) 0deg 10deg, rgba(255, 255, 220, .15) 10deg 20deg); }
+@keyframes raySpin { to { rotate: 360deg; } }
+.gc-flash { position: absolute; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(circle at 50% 42%, #FFF8D6 0%, rgba(255, 226, 120, .6) 35%, rgba(255, 226, 120, 0) 72%); }
+.gacha.open .gc-flash { animation: gcFlash .8s ease-out; }
+@keyframes gcFlash { 0% { opacity: 0; } 18% { opacity: 1; } 100% { opacity: 0; } }
+
+.gc-cat { position: absolute; left: 0; right: 0; bottom: 56px; text-align: center; opacity: 0; transform: translateY(40px) scale(.2); z-index: 2; }
+.gc-cat span { display: inline-block; font-size: 112px; line-height: 1; filter: drop-shadow(0 0 18px rgba(255, 214, 90, .9)); }
+.gacha.open .gc-cat { animation: catPop .7s .2s cubic-bezier(.2, 1.5, .4, 1) forwards; }
+.gacha.done .gc-cat span { animation: catBob 2.4s ease-in-out infinite; }
+@keyframes catPop { to { opacity: 1; transform: translateY(-14px) scale(1); } }
+@keyframes catBob { 0%, 100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-8px) rotate(3deg); } }
+.gc-sparks i { position: absolute; left: 50%; top: 52%; margin: -10px 0 0 -10px; font-style: normal; font-size: 22px; color: #FFE27A; opacity: 0; text-shadow: 0 0 8px #FFD34D; }
+.gacha.open .gc-sparks i { animation: spark 1.2s var(--d) ease-out forwards; }
+.gacha.r-SR.done .gc-sparks i { animation: spark 1.6s var(--d) ease-out infinite; }
+@keyframes spark { 0% { opacity: 1; transform: rotate(var(--a)) translateY(0) scale(.4); } 100% { opacity: 0; transform: rotate(var(--a)) translateY(-140px) scale(1.3); } }
+.gacha.done .gc-paw, .gacha.done .gc-box { visibility: hidden; }
+
+.gc-result { position: relative; z-index: 2; width: min(100%, 340px); margin-top: 6px; text-align: center; opacity: 0; transform: translateY(20px); pointer-events: none; }
+.gacha.done .gc-result { opacity: 1; transform: none; pointer-events: auto; transition: opacity .35s, transform .35s; }
+.gc-rar { display: inline-block; padding: 3px 12px; border-radius: 10px; font-weight: 900; font-size: 13px; border: 2px solid #3B2A00; color: #fff; background: #7CC995; }
+.gc-rar.r-R { background: #4FA3F7; }
+.gc-rar.r-SR { background: linear-gradient(135deg, #FFE27A, #FF9F1C); color: #5A2E00; }
+.gc-name { margin-top: 10px; font-size: 26px; font-weight: 900; text-shadow: 0 3px 0 rgba(0, 0, 0, .35); }
+.gc-intro { margin: 8px 10px 12px; font-size: 14px; line-height: 1.6; color: rgba(255, 255, 255, .82); }
+.gc-dup, .gc-new { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 14px; font-weight: 800; font-size: 14px; border: 2px solid #3B2A00; }
+.gc-dup { background: #FFE27A; color: #5A3A00; }
+.gc-new { background: #FFC7D3; color: #5A1F2E; }
+.gc-btns { display: flex; gap: 10px; margin-top: 18px; }
+.gc-btns button { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 3px; padding: 13px 0; border-radius: 16px; font-size: 16px; font-weight: 900; background: #fff; color: #3B2A00; border: 2.5px solid #3B2A00; box-shadow: 0 4px 0 #3B2A00; }
+.gc-btns button.again { background: #FF7A8A; color: #fff; }
+.gc-btns button:active { transform: translateY(3px); box-shadow: 0 1px 0 #3B2A00; }
+
+/* 图鉴 */
+.dex-prog { margin-top: 10px; }
+.dex-prog-row { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; margin-bottom: 6px; }
+.dex-prog-row b { font-size: 16px; }
+.dex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.dex-cell {
+  position: relative; aspect-ratio: .86; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 6px;
+  border-radius: 18px; background: var(--card); color: var(--text); border: 2.5px solid #3B2A00; box-shadow: 0 3px 0 #3B2A00;
+}
+.dex-cell:active { transform: translateY(2px); box-shadow: 0 1px 0 #3B2A00; }
+.dx-e { font-size: 46px; line-height: 1.1; }
+.dex-cell b { font-size: 13px; font-weight: 800; }
+.dx-r { position: absolute; left: 6px; top: 6px; font-size: 10px; font-weight: 900; padding: 0 6px; border-radius: 7px; border: 1.5px solid #3B2A00; color: #fff; background: #7CC995; }
+.dex-cell.r-R { background: linear-gradient(160deg, #F1F8FF, #CFE6FF); color: #1E3A5F; }
+.dex-cell.r-R .dx-r { background: #4FA3F7; }
+.dex-cell.r-SR { background: linear-gradient(160deg, #FFF7DA, #FFD976); color: #4A2E00; }
+.dex-cell.r-SR .dx-r { background: linear-gradient(135deg, #FFE27A, #FF9F1C); color: #5A2E00; }
+.dx-n { position: absolute; right: 7px; top: 6px; font-style: normal; font-size: 11px; font-weight: 800; opacity: .6; }
+.dex-cell.lock { background: #4A4540; border-color: #2A2622; box-shadow: 0 3px 0 #2A2622; }
+.dex-cell.lock .dx-r { background: #6E675F; border-color: #2A2622; color: #CFC8BC; }
+.dx-q { font-size: 40px; font-weight: 900; color: #6E675F; line-height: 1.1; }
+.dex-cell.lock b { color: #8E877D; }
+.dex-legend { text-align: center; font-size: 12px; color: var(--sub); margin: 16px 0 0; }
+.rar { display: inline-block; font-size: 11px; font-weight: 900; padding: 0 7px; margin: 0 3px; border-radius: 8px; border: 1.5px solid #3B2A00; color: #fff; background: #7CC995; vertical-align: 2px; }
+.rar.r-R { background: #4FA3F7; }
+.rar.r-SR { background: linear-gradient(135deg, #FFE27A, #FF9F1C); color: #5A2E00; }
+.dex-detail { text-align: center; padding: 4px 6px 10px; }
+.dd-art { position: relative; width: 160px; height: 160px; margin: 0 auto 4px; display: grid; place-items: center; }
+.dd-glow { position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(circle, rgba(124, 201, 149, .55), rgba(124, 201, 149, 0) 70%); animation: ddPulse 2.4s ease-in-out infinite; }
+.r-R .dd-glow { background: radial-gradient(circle, rgba(79, 163, 247, .55), rgba(79, 163, 247, 0) 70%); }
+.r-SR .dd-glow { background: radial-gradient(circle, rgba(255, 200, 40, .75), rgba(255, 200, 40, 0) 70%); }
+@keyframes ddPulse { 0%, 100% { transform: scale(.9); opacity: .8; } 50% { transform: scale(1.08); opacity: 1; } }
+.dd-e { position: relative; font-size: 96px; line-height: 1; }
+.dd-name { font-size: 22px; font-weight: 900; }
+.dd-rar { color: var(--sub); font-size: 13px; margin-top: 2px; }
+.dd-intro { line-height: 1.7; margin: 10px 4px; }
+.dd-meta { font-size: 12px; color: var(--sub); }

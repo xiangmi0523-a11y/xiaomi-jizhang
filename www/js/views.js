@@ -97,7 +97,7 @@
         <div><span>结余</span><b>${money(sums.income - sums.expense)}</b></div>
         <div><span>笔数</span><b>${recs.length}</b></div>
       </div>${budHTML}</div>`;
-    return hero + `<div class="body">${H.mode === 'list' ? listHTML(recs, '这个月还没有记录<br>点下面的 ＋ 记第一笔吧') : calHTML(recs)}</div>` + App.game.signFabHTML();
+    return hero + `<div class="body">${App.cats.boxCardHTML()}${H.mode === 'list' ? listHTML(recs, '这个月还没有记录<br>点下面的 ＋ 记第一笔吧') : calHTML(recs)}</div>` + App.game.signFabHTML();
   };
 
   const calHTML = recs => {
@@ -285,7 +285,7 @@
     const S = App.S;
     let assets = 0, debt = 0;
     S.accounts.filter(a => !a.hidden).forEach(a => { const b = App.balance(a.id); if (b >= 0) assets += b; else debt += -b; });
-    const hero = `<div class="hero slim"><div class="hero-top"><h2 class="hero-title">资产</h2></div>
+    const hero = `<div class="hero slim"><div class="hero-top"><div class="hero-back"><button class="icon-btn" data-act="tab" data-t="mine" aria-label="返回">${UI.icons.back}</button><h2 class="hero-title">资产</h2></div></div>
       <div class="hero-main"><div class="lbl">净资产</div><div class="big"><small>¥</small>${money(assets - debt)}</div></div>
       <div class="hero-row two"><div><span>总资产</span><b>${money(assets)}</b></div><div><span>总负债</span><b>${money(debt)}</b></div></div></div>`;
     const order = ['cash', 'ewallet', 'bank', 'credit', 'invest', 'other'];

@@ -111,7 +111,7 @@
     records: [],
     budget: { total: 0, cats: {} },
     recurring: [],
-    game: { coins: 100, signed: [], progress: 0 },
+    game: { coins: 100, signed: [], progress: 0, cats: {} },
     settings: { theme: 'millet', mode: 'auto', weekStart: 1, pin: '', lastAcc: '' }
   });
 
@@ -124,6 +124,7 @@
     if (!out.budget.cats || typeof out.budget.cats !== 'object') out.budget.cats = {};
     out.game = Object.assign({}, d.game, s.game || {});
     if (!Array.isArray(out.game.signed)) out.game.signed = [];
+    if (!out.game.cats || typeof out.game.cats !== 'object' || Array.isArray(out.game.cats)) out.game.cats = {};
     ['coins', 'progress'].forEach(k => { out.game[k] = Number.isFinite(out.game[k]) ? Math.max(0, Math.floor(out.game[k])) : d.game[k]; });
     out.cats = {
       expense: (s.cats && Array.isArray(s.cats.expense)) ? s.cats.expense : d.cats.expense,

@@ -8,6 +8,12 @@
   const row = (act, icon, title, sub) =>
     `<button class="menu-row" data-act="${act}"><span class="mi">${icon}</span><span class="mt">${title}${sub ? `<small>${sub}</small>` : ''}</span><span class="mr">${UI.icons.chev}</span></button>`;
 
+  const assetCard = () => {
+    let a = 0, d = 0;
+    App.S.accounts.filter(x => !x.hidden).forEach(x => { const b = App.balance(x.id); if (b >= 0) a += b; else d -= b; });
+    return `<button class="card asset-card" data-act="tab" data-t="assets"><div class="ac-main"><span>💰 我的资产 · 净资产</span><b>${a - d < 0 ? '-' : ''}¥${money(Math.abs(a - d))}</b><small>总资产 ${money(a)} · 总负债 ${money(d)} · 账户 ${App.visibleAccounts().length} 个</small></div><span class="mr">${UI.icons.chev}</span></button>`;
+  };
+
   const mineRender = () => {
     const S = App.S;
     const days = App.recordDays(), n = S.records.length;
@@ -15,6 +21,7 @@
     const rec = S.recurring.filter(r => r.enabled).length;
     return `<div class="hero slim mine-hero"><div class="avatar">🐱</div><div><h2 class="hero-title">晓米记账</h2><div class="hero-sub">已记 ${days} 天 · 共 ${n} 笔</div></div></div>
       <div class="body">
+        ${assetCard()}
         <div class="card list menu">
           ${row('openBudget', '🎯', '预算', bud)}
           ${row('openRecurring', '🔁', '周期记账', rec ? rec + ' 项运行中' : '房租、会员等固定支出自动记')}
@@ -25,7 +32,7 @@
           ${row('openSecurity', '🔒', '密码锁', S.settings.pin ? '已开启' : '未开启')}
           ${row('openData', '💾', '数据与备份', '导出、导入、清空')}
         </div>
-        <div class="card list menu">${row('openAbout', '🌾', '关于晓米记账', 'v1.1')}</div>
+        <div class="card list menu">${row('openAbout', '🌾', '关于晓米记账', 'v1.2')}</div>
       </div>`;
   };
   App.views.mine = { render: mineRender };
@@ -316,7 +323,7 @@
   A.openAbout = () => {
     UI.sheet({
       title: '关于', cls: 'compact',
-      render: () => `<div class="about"><div class="avatar big">🐱</div><h3>晓米记账</h3><p class="muted">v1.1 · 给自己用的小账本</p>
+      render: () => `<div class="about"><div class="avatar big">🐱</div><h3>晓米记账</h3><p class="muted">v1.2 · 给自己用的小账本</p>
         <p>所有数据只存在这台手机里，没有账号、没有联网、没有广告。</p>
         <p class="muted">记一笔 · 明细日历 · 统计图表 · 资产账户 · 预算 · 周期记账 · 备份导出</p></div>`
     });

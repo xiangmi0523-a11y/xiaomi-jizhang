@@ -16,9 +16,12 @@
   G.shown = null;
   const shownVal = () => (G.shown == null ? G.coins() : G.shown);
 
+  /* ---------- 金币（CSS 绘制的立体金币） ---------- */
+  G.coinHTML = size => `<span class="gcoin" style="--s:${size || 18}px"></span>`;
+
   /* ---------- 金币胶囊（首页顶部右侧） ---------- */
   G.pillHTML = () =>
-    `<button class="coin-pill" data-act="coinPill" aria-label="金币"><span class="coin-ico">🪙</span><b id="coinNum">${shownVal()}</b></button>`;
+    `<button class="coin-pill" data-act="coinPill" aria-label="金币">${G.coinHTML(20)}<b id="coinNum">${shownVal()}</b></button>`;
   A.coinPill = () => UI.toast('每笔记账 +' + REWARD_RECORD + ' · 每日签到 +' + REWARD_SIGN, 1800, 'gold');
 
   /* ---------- 金币入库动画 ---------- */
@@ -39,16 +42,16 @@
     };
     for (let i = 0; i < count; i++) {
       const el = document.createElement('span');
-      el.className = 'coin-fly'; el.textContent = '🪙';
+      el.className = 'coin-fly gcoin';
       el.style.left = from.x + 'px'; el.style.top = from.y + 'px';
       document.body.appendChild(el);
       const spread = (Math.random() - 0.5) * 90;
       const dx = tx - from.x, dy = ty - from.y;
       if (!el.animate) { el.remove(); done++; continue; }
       const a = el.animate([
-        { transform: 'translate(0px,0px) scale(.5)', opacity: 0 },
-        { transform: `translate(${spread}px,-56px) scale(1.15)`, opacity: 1, offset: 0.28 },
-        { transform: `translate(${dx}px,${dy}px) scale(.55)`, opacity: 0.95 }
+        { transform: 'translate(0px,0px) scale(.5) rotateY(0deg)', opacity: 0 },
+        { transform: `translate(${spread}px,-56px) scale(1.15) rotateY(200deg)`, opacity: 1, offset: 0.28 },
+        { transform: `translate(${dx}px,${dy}px) scale(.6) rotateY(720deg)`, opacity: 0.95 }
       ], { duration: 820, delay: i * 90, easing: 'cubic-bezier(.45,0,.25,1)', fill: 'both' });
       a.onfinish = () => { el.remove(); if (++done === count) land(); };
     }
@@ -110,7 +113,7 @@
       <div class="sg-stats">
         <div><b>${G.streak()}</b><span>连续签到(天)</span></div>
         <div><b>${monthCount(ym)}</b><span>本月已签(天)</span></div>
-        <div><b>+${REWARD_SIGN}</b><span>每日奖励 🪙</span></div>
+        <div><b>+${REWARD_SIGN}</b><span>每日奖励 ${G.coinHTML(12)}</span></div>
       </div>
       <div class="sg-board"><div class="sg-month">${y}年${m}月</div><div class="sg-week">${heads}</div><div class="sg-grid">${cells}</div></div>
       ${signed ? '<button class="sg-btn off" disabled>明天再来</button>' : `<button class="sg-btn" data-sg="sign">签到领 ${REWARD_SIGN} 金币</button>`}
