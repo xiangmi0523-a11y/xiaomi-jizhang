@@ -183,7 +183,7 @@
     const cells = C.LIST.map(c => {
       const o = own[c.id];
       if (!o) return `<button class="dex-cell lock" data-act="dexLock"><span class="dx-r">${c.r}</span><span class="dx-q">?</span><b>未解锁</b></button>`;
-      return `<button class="dex-cell r-${c.r}" data-act="dexCat" data-id="${c.id}"><span class="dx-r">${c.r}</span><span class="dx-e">${App.catArt.svg(c.id, { w: 96 })}</span><b>${esc(c.name)}</b>${o.n > 1 ? `<i class="dx-n">×${o.n}</i>` : ''}</button>`;
+      return `<button class="dex-cell r-${c.r}" data-act="dexCat" data-id="${c.id}"><span class="dx-r">${c.r}</span><span class="dx-e">${App.catArt.svg(c.id, { w: 96, sleep: App.mood.isSleeping(c.id) })}</span><b>${esc(c.name)}</b>${o.n > 1 ? `<i class="dx-n">×${o.n}</i>` : ''}</button>`;
     }).join('');
     const legend = `<div class="dex-legend">${Object.keys(C.RARITY).map(r => `<span class="rar r-${r}">${r}</span>${C.RARITY[r].name} ${Math.round(C.RARITY[r].p * 100)}%`).join('　')}</div>`;
     return `${prog}<div class="dex-grid">${cells}</div>${legend}
@@ -195,15 +195,33 @@
   A.dexCat = el => {
     const c = C.byId(el.dataset.id), o = gs().cats[c.id];
     if (!c || !o) return;
+    const M = App.mood;
     UI.sheet({
       title: '猫咪档案', cls: 'compact',
       render: () => `<div class="dex-detail r-${c.r}">
-        <div class="dd-art"><div class="dd-glow"></div><span class="dd-e">${App.catArt.svg(c.id, { w: 210 })}</span></div>
+        <div class="dd-art"><div class="dd-glow"></div><span class="dd-e">${App.catArt.svg(c.id, { w: 210, sleep: M.isSleeping(c.id) })}</span></div>
         <div class="dd-name">${esc(c.name)}<span class="rar r-${c.r}">${c.r}</span></div>
         <div class="dd-rar">${C.RARITY[c.r].name}猫咪</div>
         <p class="dd-intro">${esc(c.intro)}</p>
         <div class="dd-meta">${U.dayLabel(o.got)}第一次遇见 · 一共遇见 ${o.n} 次</div>
-      </div>`
+        <div class="dd-mood">心情：${M.label(c.id)}</div><br>
+        <button class="feed-btn big${App.game.coins() < M.COST ? ' poor' : ''}" data-feed="1">${M.canSVG(26)}喂罐头 ${App.game.coinHTML(15)}${M.COST}</button>
+        <p class="hint center">每次 +心情；连续 3 天不记账猫咪会饿得睡着，喂一次就醒</p>
+      </div>`,
+      onMount: h => {
+        h.body.addEventListener('click', e => {
+          if (!e.target.closest('[data-feed]')) return;
+          const r = M.feed(c.id);
+          if (r === 'poor') { UI.toast(`金币不足，一个罐头要 ${M.COST} 金币`, 2000); return; }
+          if (r === 'full') { UI.toast(M.FULL_LINE); return; }
+          if (r !== 'ok') return;
+          App.changed(); h.update();
+          const art = h.body.querySelector('.dd-e .xc');
+          if (art) art.classList.add('jump', 'happy');
+          M.hearts(h.body.querySelector('.dd-art'));
+          UI.toast(`喂食成功！${M.FED_LINES[Math.floor(Math.random() * M.FED_LINES.length)]}`, 2000, 'gold');
+        });
+      }
     });
   };
 

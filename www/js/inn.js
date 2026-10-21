@@ -83,11 +83,25 @@
     return I.pos;
   };
 
+  const catSVG = (c, p, sleep) => App.catArt.svg(c.id, { w: c.r === 'SR' ? 86 : 76, cls: !sleep && p && p.flip ? 'flip' : '', sleep });
+
+  /* ---------- 底部操作条：选中的猫咪 + 喂罐头 ---------- */
+  const actHTML = () => {
+    const id = I.sel, c = id && App.cats.byId(id), M = App.mood;
+    if (!c || !App.S.game.cats[id]) return `<div class="inn-act empty" id="innAct">${M.canSVG(22)} 点一只猫咪，可以给它喂罐头</div>`;
+    const poor = App.game.coins() < M.COST;
+    return `<div class="inn-act" id="innAct"><span class="ia-cat">${App.catArt.svg(id, { head: true, w: 46, mood: M.isSleeping(id) ? 'sleep' : 'normal' })}</span>
+      <span class="ia-main"><b>${esc(c.name)}</b><span>心情：${M.label(id)}</span></span>
+      <button class="feed-btn${poor ? ' poor' : ''}" data-act="innFeed" data-id="${id}">${M.canSVG(24)}喂罐头 ${App.game.coinHTML(14)}${M.COST}</button></div>`;
+  };
+  const refreshAct = () => { const el = document.getElementById('innAct'); if (el) el.outerHTML = actHTML(); };
+
   const sceneHTML = () => {
     const cats = ownedCats(), pos = catPositions(cats);
     const catsHTML = pos.map(p => {
       const c = App.cats.byId(p.id);
-      return `<button class="inn-cat r-${c.r}" data-act="innCat" data-id="${c.id}" style="${placeStyle(p.x, p.y, 'b')}">${App.catArt.svg(c.id, { w: c.r === 'SR' ? 86 : 76, cls: p.flip ? 'flip' : '' })}<span class="say"></span></button>`;
+      const sleep = App.mood.isSleeping(c.id);
+      return `<div class="inn-cat r-${c.r}${sleep ? ' sleeping' : ''}${I.sel === c.id ? ' sel' : ''}" role="button" data-act="innCat" data-id="${c.id}" style="${placeStyle(p.x, p.y, 'b')}">${catSVG(c, p, sleep)}<span class="say"></span></div>`;
     }).join('');
     const empty = cats.length ? '' : '<div class="inn-nocat">还没有猫咪入住～<br>去「明细」开个盲盒吧 🎁</div>';
     return `<div class="inn-scene">
@@ -109,9 +123,9 @@
         <button data-act="innSub" data-v="dex" class="${I.sub === 'dex' ? 'on' : ''}">📖 图鉴 ${n}/${App.cats.LIST.length}</button>
       </div></div>`;
     if (I.sub === 'dex') return head + `<div class="body">${App.cats.dexBodyHTML()}</div>`;
-    return head + `<div class="body">${sceneHTML()}
+    return head + `<div class="body">${sceneHTML()}${actHTML()}
       <div class="inn-info"><span>🛋️ 家具 ${placed}/${I.SLOTS.length}</span><span>🐾 入住猫咪 ${Math.min(n, SPOTS.length)} 只</span></div>
-      <p class="muted center pad">点空位去商店买家具，点已摆的家具可以更换<br>点一下猫咪，听听它想说什么</p></div>`;
+      <p class="muted center pad">点空位去商店买家具，点已摆的家具可以更换<br>点一下猫咪听它说话，还能喂罐头；连续 3 天不记账，猫咪会饿得睡着</p></div>`;
   };
   App.views.inn = { render: innRender };
 
@@ -138,7 +152,7 @@
     const now = Date.now(), W = sc.clientWidth, H = sc.clientHeight;
     sc.querySelectorAll('.inn-cat').forEach(el => {
       const p = posOf(el.dataset.id);
-      if (!p || el.classList.contains('moving') || el.classList.contains('talk')) return;
+      if (!p || el.classList.contains('moving') || el.classList.contains('talk') || el.classList.contains('sleeping')) return;
       if (!p.next) { p.next = now + 800 + Math.random() * 4000; return; }
       if (now < p.next) return;
       const tx = FLOOR.x0 + Math.random() * (FLOOR.x1 - FLOOR.x0), ty = FLOOR.y0 + Math.random() * (FLOOR.y1 - FLOOR.y0);
@@ -159,23 +173,18 @@
   };
   setInterval(stepCats, 700);
 
-  /* ---------- 点猫咪：停下、跳一下、笑眯眯、冒台词 ---------- */
+  /* ---------- 点猫咪：停下、跳一下、笑眯眯、冒台词；睡着的猫只会翻个身喊饿 ---------- */
   const sayTimers = new WeakMap();
-  I.lineFor = () => I.LINES[Math.floor(Math.random() * I.LINES.length)];
-  A.innCat = el => {
-    const p = posOf(el.dataset.id), sc = el.closest('.inn-scene'), art = el.querySelector('.xc');
-    if (p && el.classList.contains('moving') && sc) {   // 走到一半被点：原地停下
-      const cs = getComputedStyle(el);
-      p.x = parseFloat(cs.left) / sc.clientWidth * 100; p.y = parseFloat(cs.top) / sc.clientHeight * 100;
-      clearTimeout(p.end); el.style.transition = 'none'; el.style.left = p.x + '%'; el.style.top = p.y + '%';
-      el.classList.remove('moving'); art.classList.remove('walk');
-    }
-    if (p) p.next = Date.now() + 4000;
-    art.classList.remove('jump'); void art.offsetWidth; art.classList.add('jump', 'happy');
-    clearTimeout(art._t); art._t = setTimeout(() => art.classList.remove('jump', 'happy'), 1700);
-
-    const say = el.querySelector('.say');
-    say.textContent = I.lineFor();
+  I.LOW_LINES = ['有点无聊…想吃罐头了', '肚子咕咕叫了喵…', '今天还没记账吗？'];
+  I.lineFor = id => {
+    const v = id ? App.mood.get(id) : 70;
+    const pool = v < 60 ? I.LINES.concat(I.LOW_LINES, I.LOW_LINES) : I.LINES;
+    return pool[Math.floor(Math.random() * pool.length)];
+  };
+  const talk = (el, text) => {
+    const say = el.querySelector('.say'), sc = el.closest('.inn-scene');
+    if (!say) return;
+    say.textContent = text;
     if (sc) {   // 气泡别被场景边缘裁掉
       const sr = sc.getBoundingClientRect(), cr = el.getBoundingClientRect(), w = say.offsetWidth;
       const center = cr.left + cr.width / 2, left = center - w / 2;
@@ -187,6 +196,68 @@
     say.classList.add('show');
     clearTimeout(sayTimers.get(el));
     sayTimers.set(el, setTimeout(() => { say.classList.remove('show'); el.classList.remove('talk'); }, 2000));
+  };
+  const hop = art => {
+    art.classList.remove('jump'); void art.offsetWidth; art.classList.add('jump', 'happy');
+    clearTimeout(art._t); art._t = setTimeout(() => art.classList.remove('jump', 'happy'), 1700);
+  };
+  const select = id => {
+    I.sel = id;
+    document.querySelectorAll('.inn-cat').forEach(x => x.classList.toggle('sel', x.dataset.id === id));
+    refreshAct();
+  };
+
+  A.innCat = el => {
+    const id = el.dataset.id, p = posOf(id), sc = el.closest('.inn-scene'), art = el.querySelector('.xc');
+    select(id);
+    if (el.classList.contains('sleeping')) {
+      art.classList.remove('stir'); void art.offsetWidth; art.classList.add('stir');
+      talk(el, App.mood.HUNGRY_LINE);
+      return;
+    }
+    if (p && el.classList.contains('moving') && sc) {   // 走到一半被点：原地停下
+      const cs = getComputedStyle(el);
+      p.x = parseFloat(cs.left) / sc.clientWidth * 100; p.y = parseFloat(cs.top) / sc.clientHeight * 100;
+      clearTimeout(p.end); el.style.transition = 'none'; el.style.left = p.x + '%'; el.style.top = p.y + '%';
+      el.classList.remove('moving'); art.classList.remove('walk');
+    }
+    if (p) p.next = Date.now() + 4000;
+    hop(art);
+    talk(el, I.lineFor(id));
+  };
+
+  /* ---------- 喂罐头 ---------- */
+  A.innFeed = btn => {
+    const id = btn.dataset.id, M = App.mood;
+    const catEl = document.querySelector(`.inn-cat[data-id="${id}"]`);
+    const wasSleeping = M.isSleeping(id);
+    const r = M.feed(id);
+    if (r === 'poor') { UI.toast(`金币不足，一个罐头要 ${M.COST} 金币`, 2000); return; }
+    if (r === 'full') { if (catEl) talk(catEl, M.FULL_LINE); UI.toast('它已经饱饱的啦，晚点再喂吧'); return; }
+    if (r !== 'ok') return;
+    App.flush();
+    const num = document.getElementById('coinNum');
+    if (num) num.textContent = App.game.coins();
+    const pill = document.querySelector('.coin-pill');
+    if (pill) { pill.classList.remove('bump'); void pill.offsetWidth; pill.classList.add('bump'); }
+    UI.toast(`喂食成功！花了 ${M.COST} 金币`, 1800, 'gold');
+    const b = btn.getBoundingClientRect(), from = { x: b.left + 22, y: b.top + b.height / 2 };
+    const t = catEl ? catEl.getBoundingClientRect() : null;
+    const to = t ? { x: t.left + t.width * 0.4, y: t.top + t.height * 0.45 } : from;
+    if (catEl) { const p = posOf(id); if (p) p.next = Date.now() + 5000; }
+    M.flyCan(from, to, () => {
+      if (catEl && catEl.isConnected) {
+        if (wasSleeping) {   // 吃到罐头就醒了
+          const c = App.cats.byId(id), p = posOf(id);
+          catEl.querySelector('.xc').outerHTML = catSVG(c, p, false);
+          catEl.classList.remove('sleeping');
+        }
+        hop(catEl.querySelector('.xc'));
+        M.hearts(catEl);
+        talk(catEl, M.FED_LINES[Math.floor(Math.random() * M.FED_LINES.length)]);
+      }
+      refreshAct();
+    });
   };
 
   /* ---------- 商店 ---------- */

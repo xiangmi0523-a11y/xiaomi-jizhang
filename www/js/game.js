@@ -72,6 +72,7 @@
   // 保存一笔新账单后调用
   G.rewardRecord = pos => {
     st().progress += 1;      // 记账次数进度（阶段二抽盲盒会用到）
+    if (App.mood) App.mood.onRecord();   // 记账让所有猫咪开心一点
     UI.toast('记账成功，获得 ' + REWARD_RECORD + ' 金币', 2000, 'gold');
     G.add(REWARD_RECORD, pos);
   };
@@ -165,7 +166,7 @@
     const t = U.today();
     if (t === lastDay) return;
     lastDay = t;
-    if (App.S) { App.render(true); paint(); }
+    if (App.S) { if (App.mood) App.mood.decay(); App.changed(); paint(); }
   };
   setInterval(checkNewDay, 15000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) checkNewDay(); });

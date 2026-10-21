@@ -40,16 +40,17 @@
 
   const BODY = 'M74 96C72 78 104 74 138 76C170 78 188 92 184 120C181 144 160 150 132 150L98 150C76 150 68 128 74 96Z';
   const TAIL = 'M176 104C200 96 206 62 192 44C182 30 194 16 208 24';
+  const SLEEP_TAIL = 'M178 136C198 156 170 170 132 170C110 170 96 168 90 160';   // 睡觉时尾巴绕到身前
 
-  const tail = L => {
+  const tail = (L, P = TAIL, tip = [208, 24]) => {
     let rings = '';
-    if (L.pattern === 'tabby') rings = `<path d="${TAIL}" fill="none" stroke="${L.stripe}" stroke-width="12.5" stroke-linecap="butt" stroke-dasharray="5 10" stroke-dashoffset="-6"/>`;
-    if (L.pattern === 'tiger') rings = `<path d="${TAIL}" fill="none" stroke="${L.stripe}" stroke-width="12.5" stroke-linecap="butt" stroke-dasharray="6 8" stroke-dashoffset="-4"/>`;
-    if (L.pattern === 'calico') rings = `<path d="${TAIL}" fill="none" stroke="${L.p1}" stroke-width="12.5" stroke-dasharray="26 200" stroke-dashoffset="-34"/>`;
-    const tuft = L.acc === 'mane' ? `<circle cx="208" cy="24" r="10" fill="${L.mane}" stroke="${L.ol}" stroke-width="${SW}"/>` : '';
+    if (L.pattern === 'tabby') rings = `<path d="${P}" fill="none" stroke="${L.stripe}" stroke-width="12.5" stroke-linecap="butt" stroke-dasharray="5 10" stroke-dashoffset="-6"/>`;
+    if (L.pattern === 'tiger') rings = `<path d="${P}" fill="none" stroke="${L.stripe}" stroke-width="12.5" stroke-linecap="butt" stroke-dasharray="6 8" stroke-dashoffset="-4"/>`;
+    if (L.pattern === 'calico') rings = `<path d="${P}" fill="none" stroke="${L.p1}" stroke-width="12.5" stroke-dasharray="26 200" stroke-dashoffset="-34"/>`;
+    const tuft = L.acc === 'mane' ? `<circle cx="${tip[0]}" cy="${tip[1]}" r="10" fill="${L.mane}" stroke="${L.ol}" stroke-width="${SW}"/>` : '';
     return `<g class="xc-tail">
-      <path d="${TAIL}" fill="none" stroke="${L.ol}" stroke-width="21" stroke-linecap="round"/>
-      <path d="${TAIL}" fill="none" stroke="${L.base}" stroke-width="12.5" stroke-linecap="round"/>
+      <path d="${P}" fill="none" stroke="${L.ol}" stroke-width="21" stroke-linecap="round"/>
+      <path d="${P}" fill="none" stroke="${L.base}" stroke-width="12.5" stroke-linecap="round"/>
       ${rings}${tuft}
     </g>`;
   };
@@ -97,10 +98,11 @@
     const inner = L.ear || '#F6B0A2';
     const nose = L.nose || '#F28C8C';
     const blush = L.blush == null ? 0.5 : L.blush;
-    const sad = mood === 'worried', mad = mood === 'angry';
+    const sad = mood === 'worried', mad = mood === 'angry', zz = mood === 'sleep';
     let face = '';
     // 眼睛：普通睁眼（会眨）/ 笑眯眯；点一下会临时变成笑眼
-    if (L.eye === 'smile') face += eyesSmile(L);
+    if (zz) face += `<path d="M44 70q7 6 14 0M74 70q7 6 14 0" fill="none" stroke="${L.ol}" stroke-width="3.4" stroke-linecap="round"/>`;
+    else if (L.eye === 'smile') face += eyesSmile(L);
     else face += `<g class="eo">${eyesOpen(L)}</g><g class="es">${eyesSmile(L)}</g>`;
     // 眉毛
     if (sad) face += `<path d="M42 58l13-4M77 54l13 4" stroke="${L.ol}" stroke-width="3.2" stroke-linecap="round"/>`;
@@ -109,6 +111,7 @@
     face += `<path d="M61.5 79.5h9l-4.5 5.2z" fill="${nose}" stroke="${L.ol}" stroke-width="1.6" stroke-linejoin="round"/>`;
     if (sad) face += `<path d="M59 92q7-6 14 0" fill="none" stroke="${L.ol}" stroke-width="3" stroke-linecap="round"/>`;
     else if (mad) face += `<path d="M58 93l4-4 4 4 4-4 4 4" fill="none" stroke="${L.ol}" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>`;
+    else if (zz) face += `<path d="M61 88q5 3.5 10 0" fill="none" stroke="${L.ol}" stroke-width="2.6" stroke-linecap="round"/>`;
     else face += `<path d="M58 86q4 5 8 0q4 5 8 0" fill="none" stroke="${L.ol}" stroke-width="2.8" stroke-linecap="round"/>`;
     // 腮红
     face += `<ellipse cx="35" cy="84" rx="8" ry="5" fill="#FF8C9E" opacity="${mad ? 0.85 : blush}"/><ellipse cx="97" cy="84" rx="8" ry="5" fill="#FF8C9E" opacity="${mad ? 0.85 : blush}"/>`;
@@ -137,7 +140,7 @@
   K.svg = (id, o = {}) => {
     const L = Object.assign({ pattern: 'tabby', eye: 'dot' }, K.LOOKS[id] || K.LOOKS.n1);
     const u = 'xc' + (++uid);
-    const mood = o.mood || 'normal';
+    const mood = o.sleep ? 'sleep' : (o.mood || 'normal');
     const defs = `<defs>
       <clipPath id="b${u}"><path d="${BODY}"/></clipPath>
       <clipPath id="h${u}"><ellipse cx="66" cy="68" rx="42" ry="36"/></clipPath>
@@ -154,6 +157,20 @@
       <g clip-path="url(#b${u})">${bodyPattern(L)}<ellipse cx="86" cy="118" rx="22" ry="30" fill="${L.white}"/><ellipse cx="132" cy="154" rx="54" ry="16" fill="${L.white}"/><path d="${BODY}" fill="url(#g${u})"/></g>
       <path d="${BODY}" fill="none" stroke="${L.ol}" stroke-width="${SW}" stroke-linejoin="round"/>
     </g>`;
+    if (o.sleep) {
+      const paw = x => `<ellipse cx="${x}" cy="166" rx="14" ry="8" fill="${L.white}" stroke="${L.ol}" stroke-width="${SW}"/><path d="M${x - 4} 163v4.5M${x + 4} 163v4.5" stroke="${L.ol}" stroke-width="2" stroke-linecap="round"/>`;
+      return `<span class="${cls} sleep" style="${style}"><svg viewBox="0 0 220 178" aria-hidden="true">${defs}
+        <ellipse class="xc-shadow" cx="122" cy="168" rx="84" ry="8" fill="#3B2A00" opacity=".16"/>
+        <g class="xc-all">
+          <g transform="translate(0 18)">${body}</g>
+          ${tail(L, SLEEP_TAIL, [90, 160])}
+          ${paw(80)}${paw(106)}
+          <g transform="translate(10 42) rotate(-6 66 104)">${head(L, u, 'sleep')}</g>
+          <g class="xc-zzz" font-family="-apple-system,Helvetica,Arial,sans-serif" font-weight="900" fill="#8FB4FF" stroke="#3B2A00" stroke-width="1.6" paint-order="stroke">
+            <text class="z1" x="108" y="84" font-size="20">Z</text><text class="z2" x="125" y="66" font-size="15">z</text><text class="z3" x="138" y="51" font-size="12">z</text>
+          </g>
+        </g></svg></span>`;
+    }
     return `<span class="${cls}" style="${style}"><svg viewBox="0 0 220 178" aria-hidden="true">${defs}
       <ellipse class="xc-shadow" cx="124" cy="167" rx="70" ry="7.5" fill="#3B2A00" opacity=".16"/>
       <g class="xc-all">
