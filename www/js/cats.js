@@ -177,22 +177,19 @@
   };
 
   /* ---------- 图鉴页 ---------- */
-  const dexRender = () => {
+  C.dexBodyHTML = () => {
     const own = gs().cats, n = C.ownedCount(), total = C.LIST.length;
-    const hero = `<div class="hero slim">
-      <div class="hero-top"><h2 class="hero-title">猫咪图鉴</h2><div class="hero-actions">${App.game.pillHTML()}</div></div>
-      <div class="dex-prog"><div class="dex-prog-row"><span>已收集</span><b>${n} / ${total}</b></div><div class="bar"><i style="width:${Math.round(n / total * 100)}%"></i></div></div>
-    </div>`;
+    const prog = `<div class="card pad dex-prog"><div class="dex-prog-row"><span>已收集猫咪</span><b>${n} / ${total}</b></div><div class="bar dex-bar"><i style="width:${Math.round(n / total * 100)}%"></i></div></div>`;
     const cells = C.LIST.map(c => {
       const o = own[c.id];
       if (!o) return `<button class="dex-cell lock" data-act="dexLock"><span class="dx-r">${c.r}</span><span class="dx-q">?</span><b>未解锁</b></button>`;
       return `<button class="dex-cell r-${c.r}" data-act="dexCat" data-id="${c.id}"><span class="dx-r">${c.r}</span><span class="dx-e">${c.e}</span><b>${esc(c.name)}</b>${o.n > 1 ? `<i class="dx-n">×${o.n}</i>` : ''}</button>`;
     }).join('');
     const legend = `<div class="dex-legend">${Object.keys(C.RARITY).map(r => `<span class="rar r-${r}">${r}</span>${C.RARITY[r].name} ${Math.round(C.RARITY[r].p * 100)}%`).join('　')}</div>`;
-    return hero + `<div class="body"><div class="dex-grid">${cells}</div>${legend}
-      <p class="muted center pad">在「明细」页开猫咪盲盒收集猫咪<br>每记 ${FREE_NEED} 笔账可以免费开一次，也可以花 ${COST} 金币开</p></div>`;
+    return `${prog}<div class="dex-grid">${cells}</div>${legend}
+      <p class="muted center pad">在「明细」页开猫咪盲盒收集猫咪<br>每记 ${FREE_NEED} 笔账可以免费开一次，也可以花 ${COST} 金币开</p>`;
   };
-  App.views.dex = { render: dexRender };
+  App.views.dex = { render: () => `<div class="body">${C.dexBodyHTML()}</div>` };
 
   A.dexLock = () => UI.toast('还没遇见这只猫咪，去明细页开盲盒吧');
   A.dexCat = el => {

@@ -5,7 +5,7 @@
   const A = App.A;
 
   /* ---------- 底部导航 ---------- */
-  const TABS = [['home', '明细'], ['stats', '统计'], ['add', ''], ['dex', '图鉴'], ['mine', '我的']];
+  const TABS = [['home', '明细'], ['stats', '统计'], ['add', ''], ['inn', '客栈'], ['mine', '我的']];
   const renderTabbar = () => {
     document.getElementById('tabbar').innerHTML = TABS.map(t => t[0] === 'add'
       ? `<button class="tab-add" data-act="add" aria-label="记一笔">${UI.icons.plus}</button>`
