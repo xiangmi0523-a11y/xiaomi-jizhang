@@ -19,7 +19,7 @@
     const days = App.recordDays(), n = S.records.length;
     const bud = S.budget.total > 0 ? '每月 ¥' + money(S.budget.total) : '未设置';
     const rec = S.recurring.filter(r => r.enabled).length;
-    return `<div class="hero slim mine-hero"><div class="avatar">🐱</div><div><h2 class="hero-title">晓米记账</h2><div class="hero-sub">已记 ${days} 天 · 共 ${n} 笔</div></div></div>
+    return `<div class="hero slim mine-hero"><div class="avatar">${App.catArt.svg('n1', { head: true, w: 48 })}</div><div><h2 class="hero-title">晓米记账</h2><div class="hero-sub">已记 ${days} 天 · 共 ${n} 笔</div></div></div>
       <div class="body">
         ${assetCard()}
         <div class="card list menu">
@@ -32,7 +32,7 @@
           ${row('openSecurity', '🔒', '密码锁', S.settings.pin ? '已开启' : '未开启')}
           ${row('openData', '💾', '数据与备份', '导出、导入、清空')}
         </div>
-        <div class="card list menu">${row('openAbout', '🌾', '关于晓米记账', 'v1.3')}</div>
+        <div class="card list menu">${row('openAbout', '🌾', '关于晓米记账', 'v1.4')}</div>
       </div>`;
   };
   App.views.mine = { render: mineRender };
@@ -64,6 +64,7 @@
           h.body.querySelectorAll('[data-bc]').forEach(i => { const v = U.toCents(i.value); if (v > 0) cats[i.dataset.bc] = v; });
           S.budget.cats = cats;
           App.changed(); h.close(); UI.toast('预算已保存');
+          setTimeout(() => App.budget.check(), 400);
         });
       }
     });
@@ -323,7 +324,7 @@
   A.openAbout = () => {
     UI.sheet({
       title: '关于', cls: 'compact',
-      render: () => `<div class="about"><div class="avatar big">🐱</div><h3>晓米记账</h3><p class="muted">v1.3 · 给自己用的小账本</p>
+      render: () => `<div class="about"><div class="avatar big">${App.catArt.svg('n1', { head: true, w: 70, mood: 'happy' })}</div><h3>晓米记账</h3><p class="muted">v1.4 · 给自己用的小账本</p>
         <p>所有数据只存在这台手机里，没有账号、没有联网、没有广告。</p>
         <p class="muted">记一笔 · 明细日历 · 统计图表 · 资产账户 · 预算 · 周期记账 · 备份导出</p></div>`
     });

@@ -87,7 +87,7 @@
     const cats = ownedCats(), pos = catPositions(cats);
     const catsHTML = pos.map(p => {
       const c = App.cats.byId(p.id);
-      return `<button class="inn-cat r-${c.r}" data-act="innCat" data-id="${c.id}" style="${placeStyle(p.x, p.y, 'b')};animation-delay:-${p.d}s"><span class="ic-e${p.flip ? ' flip' : ''}">${c.e}</span><span class="say"></span></button>`;
+      return `<button class="inn-cat r-${c.r}" data-act="innCat" data-id="${c.id}" style="${placeStyle(p.x, p.y, 'b')}">${App.catArt.svg(c.id, { w: c.r === 'SR' ? 86 : 76, cls: p.flip ? 'flip' : '' })}<span class="say"></span></button>`;
     }).join('');
     const empty = cats.length ? '' : '<div class="inn-nocat">还没有猫咪入住～<br>去「明细」开个盲盒吧 🎁</div>';
     return `<div class="inn-scene">
@@ -122,23 +122,68 @@
 
   A.innSub = el => { I.sub = el.dataset.v; App.render(false); };
 
-  /* ---------- 猫咪台词 ---------- */
+  /* ---------- 猫咪散步：随机走到地板上的新位置，朝向自动翻转 ---------- */
+  const FLOOR = { x0: 12, x1: 88, y0: 77, y1: 98 };
+  I.walk = true;
+  const posOf = id => (I.pos || []).find(q => q.id === id);
+  const arrive = (el, p) => {
+    el.classList.remove('moving');
+    const art = el.querySelector('.xc'); if (art) art.classList.remove('walk');
+    el.style.transition = ''; el.style.zIndex = Math.round(p.y);
+    p.next = Date.now() + 2500 + Math.random() * 6000;
+  };
+  const stepCats = () => {
+    if (!I.walk || document.hidden || App.tab !== 'inn' || I.sub !== 'scene') return;
+    const sc = document.querySelector('.inn-scene'); if (!sc) return;
+    const now = Date.now(), W = sc.clientWidth, H = sc.clientHeight;
+    sc.querySelectorAll('.inn-cat').forEach(el => {
+      const p = posOf(el.dataset.id);
+      if (!p || el.classList.contains('moving') || el.classList.contains('talk')) return;
+      if (!p.next) { p.next = now + 800 + Math.random() * 4000; return; }
+      if (now < p.next) return;
+      const tx = FLOOR.x0 + Math.random() * (FLOOR.x1 - FLOOR.x0), ty = FLOOR.y0 + Math.random() * (FLOOR.y1 - FLOOR.y0);
+      const dist = Math.hypot((tx - p.x) / 100 * W, (ty - p.y) / 100 * H);
+      if (dist < 30) { p.next = now + 1500; return; }
+      const dur = Math.max(1.2, dist / 42);            // 约 42px/秒，慢悠悠地走
+      const art = el.querySelector('.xc');
+      const right = tx > p.x;
+      p.flip = right; art.classList.toggle('flip', right);
+      art.classList.add('walk'); el.classList.add('moving');
+      el.style.zIndex = Math.round(Math.max(p.y, ty));
+      el.style.transition = `left ${dur}s linear, top ${dur}s linear`;
+      void el.offsetWidth;
+      el.style.left = tx + '%'; el.style.top = ty + '%';
+      p.x = tx; p.y = ty; p.next = Infinity;
+      clearTimeout(p.end); p.end = setTimeout(() => arrive(el, p), dur * 1000);
+    });
+  };
+  setInterval(stepCats, 700);
+
+  /* ---------- 点猫咪：停下、跳一下、笑眯眯、冒台词 ---------- */
   const sayTimers = new WeakMap();
   I.lineFor = () => I.LINES[Math.floor(Math.random() * I.LINES.length)];
   A.innCat = el => {
+    const p = posOf(el.dataset.id), sc = el.closest('.inn-scene'), art = el.querySelector('.xc');
+    if (p && el.classList.contains('moving') && sc) {   // 走到一半被点：原地停下
+      const cs = getComputedStyle(el);
+      p.x = parseFloat(cs.left) / sc.clientWidth * 100; p.y = parseFloat(cs.top) / sc.clientHeight * 100;
+      clearTimeout(p.end); el.style.transition = 'none'; el.style.left = p.x + '%'; el.style.top = p.y + '%';
+      el.classList.remove('moving'); art.classList.remove('walk');
+    }
+    if (p) p.next = Date.now() + 4000;
+    art.classList.remove('jump'); void art.offsetWidth; art.classList.add('jump', 'happy');
+    clearTimeout(art._t); art._t = setTimeout(() => art.classList.remove('jump', 'happy'), 1700);
+
     const say = el.querySelector('.say');
     say.textContent = I.lineFor();
-    // 气泡别被场景边缘裁掉
-    const scene = el.closest('.inn-scene');
-    if (scene) {
-      const sr = scene.getBoundingClientRect(), cr = el.getBoundingClientRect(), w = say.offsetWidth;
+    if (sc) {   // 气泡别被场景边缘裁掉
+      const sr = sc.getBoundingClientRect(), cr = el.getBoundingClientRect(), w = say.offsetWidth;
       const center = cr.left + cr.width / 2, left = center - w / 2;
       const clamped = Math.min(Math.max(left, sr.left + 6), sr.right - 6 - w);
       say.style.setProperty('--dx', Math.round(clamped - left) + 'px');
     }
     document.querySelectorAll('.inn-cat.talk').forEach(x => { if (x !== el) x.classList.remove('talk'); });
     el.classList.add('talk');
-    el.classList.remove('hop'); void el.offsetWidth; el.classList.add('hop');
     say.classList.add('show');
     clearTimeout(sayTimers.get(el));
     sayTimers.set(el, setTimeout(() => { say.classList.remove('show'); el.classList.remove('talk'); }, 2000));

@@ -45,7 +45,7 @@
         el.innerHTML = `<div class="lock-in"><div class="lock-cat">⚠️</div><h3>忘记密码？</h3><p class="lock-tip">重置会清空这台手机上的所有记账数据，无法恢复。<br>如果有备份文件，重置后可以在「数据与备份」里导入。</p><button class="btn danger wide" data-lk="reset">清空数据并重置</button><button class="lk-link" data-lk="back">返回</button></div>`;
         return;
       }
-      el.innerHTML = `<div class="lock-in"><div class="lock-cat">🐱</div><h3>${esc(title)}</h3><div class="lock-msg">${esc(msg || '')}</div>` +
+      el.innerHTML = `<div class="lock-in"><div class="lock-cat">${App.catArt.svg('n1', { head: true, w: 92 })}</div><h3>${esc(title)}</h3><div class="lock-msg">${esc(msg || '')}</div>` +
         `<div class="dots" id="lkDots">${[0, 1, 2, 3].map(i => `<i class="${i < buf.length ? 'on' : ''}"></i>`).join('')}</div>` +
         `<div class="lk-pad">${keys.map(k => k === '' ? '<span></span>' : `<button data-lk="k" data-v="${k}">${k === 'del' ? '⌫' : k}</button>`).join('')}</div>` +
         (o.cancel ? '<button class="lk-link" data-lk="cancel">取消</button>' : '') +
@@ -83,7 +83,7 @@
 
   /* ---------- 前后台 ---------- */
   App.onBackground = () => { App.flush(); App.lockNow(); };
-  App.onForeground = () => { App.runRecurring(); App.render(true); };
+  App.onForeground = () => { App.runRecurring(); App.render(true); App.budget.check(); };
   document.addEventListener('visibilitychange', () => { if (document.hidden) App.onBackground(); else App.onForeground(); });
   window.addEventListener('pagehide', () => App.flush());
 
@@ -109,6 +109,7 @@
     if (App.S.settings.pin) App.lockNow();
     App.runRecurring();
     App.render(false);
+    setTimeout(() => App.budget.check(), 800);
     if (App.loadError) UI.toast('数据文件读取失败，已用新账本启动，原数据已另存', 4200);
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();

@@ -125,7 +125,7 @@
         <div class="gc-paw">${pawSVG}</div>
         <div class="gc-box">${boxSVG()}</div>
         <div class="gc-sparks">${sparks}</div>
-        <div class="gc-cat"><span>${cat.e}</span></div>
+        <div class="gc-cat"><span>${App.catArt.svg(cat.id, { w: 200, mood: 'happy' })}</span></div>
       </div>
       <div class="gc-result">
         <div class="gc-rar r-${cat.r}">${cat.r} · ${C.RARITY[cat.r].name}</div>
@@ -183,7 +183,7 @@
     const cells = C.LIST.map(c => {
       const o = own[c.id];
       if (!o) return `<button class="dex-cell lock" data-act="dexLock"><span class="dx-r">${c.r}</span><span class="dx-q">?</span><b>未解锁</b></button>`;
-      return `<button class="dex-cell r-${c.r}" data-act="dexCat" data-id="${c.id}"><span class="dx-r">${c.r}</span><span class="dx-e">${c.e}</span><b>${esc(c.name)}</b>${o.n > 1 ? `<i class="dx-n">×${o.n}</i>` : ''}</button>`;
+      return `<button class="dex-cell r-${c.r}" data-act="dexCat" data-id="${c.id}"><span class="dx-r">${c.r}</span><span class="dx-e">${App.catArt.svg(c.id, { w: 96 })}</span><b>${esc(c.name)}</b>${o.n > 1 ? `<i class="dx-n">×${o.n}</i>` : ''}</button>`;
     }).join('');
     const legend = `<div class="dex-legend">${Object.keys(C.RARITY).map(r => `<span class="rar r-${r}">${r}</span>${C.RARITY[r].name} ${Math.round(C.RARITY[r].p * 100)}%`).join('　')}</div>`;
     return `${prog}<div class="dex-grid">${cells}</div>${legend}
@@ -198,7 +198,7 @@
     UI.sheet({
       title: '猫咪档案', cls: 'compact',
       render: () => `<div class="dex-detail r-${c.r}">
-        <div class="dd-art"><div class="dd-glow"></div><span class="dd-e">${c.e}</span></div>
+        <div class="dd-art"><div class="dd-glow"></div><span class="dd-e">${App.catArt.svg(c.id, { w: 210 })}</span></div>
         <div class="dd-name">${esc(c.name)}<span class="rar r-${c.r}">${c.r}</span></div>
         <div class="dd-rar">${C.RARITY[c.r].name}猫咪</div>
         <p class="dd-intro">${esc(c.intro)}</p>

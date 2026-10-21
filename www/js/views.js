@@ -43,7 +43,7 @@
     return `<div class="day-head"><span>${U.dayLabel(date)}<em>周${U.WD[U.wd(date)]}</em></span><span class="muted">${bits.join('　')}</span></div>`;
   };
   const listHTML = (recs, emptyMsg) => {
-    if (!recs.length) return `<div class="empty"><div class="empty-cat">🐱</div><p>${emptyMsg || '这里还没有记录'}</p></div>`;
+    if (!recs.length) return `<div class="empty"><div class="empty-cat">${App.catArt.svg('n1', { w: 130 })}</div><p>${emptyMsg || '这里还没有记录'}</p></div>`;
     return dayGroups(recs).map(g => dayHead(g.date, g.list) + `<div class="card list">${g.list.map(r => App.recRow(r)).join('')}</div>`).join('');
   };
 
@@ -75,13 +75,7 @@
   const homeRender = () => {
     const recs = App.recordsByMonth(H.ym);
     const sums = App.sum(recs);
-    const bud = App.S.budget.total;
-    let budHTML = '';
-    if (bud > 0) {
-      const remain = bud - sums.expense;
-      const pct = Math.max(0, Math.min(100, Math.round(sums.expense / bud * 100)));
-      budHTML = `<div class="bud"><div class="bud-row"><span>${remain >= 0 ? '本月预算剩余' : '本月已超支'}</span><b>¥${money(Math.abs(remain))}</b></div><div class="bar"><i style="width:${pct}%"></i></div></div>`;
-    }
+    const budHTML = App.budget.heroHTML(sums.expense);
     const hero = `<div class="hero">
       <div class="hero-top">
         <button class="month-btn" data-act="homeMonth">${U.ymLabel(H.ym)}<span class="caret">${UI.icons.down}</span></button>

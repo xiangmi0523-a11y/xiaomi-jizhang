@@ -109,7 +109,7 @@
     const heads = Array.from({ length: 7 }, (_, k) => `<span>${U.WD[(ws + k) % 7]}</span>`).join('');
     return `<button class="sg-close" data-sg="close" aria-label="关闭">${UI.icons.close}</button>
       <h2 class="sg-title">每日签到</h2>
-      <div class="sg-cat"><div class="sg-face">🐱</div><div class="sg-bubble">${signed ? '今天已经签到啦，明天见喵~' : '今天还没签到喵，快来领金币~'}</div></div>
+      <div class="sg-cat"><div class="sg-face">${App.catArt.svg('n1', { head: true, w: 58, mood: signed ? 'happy' : 'normal' })}</div><div class="sg-bubble">${signed ? '今天已经签到啦，明天见喵~' : '今天还没签到喵，快来领金币~'}</div></div>
       <div class="sg-stats">
         <div><b>${G.streak()}</b><span>连续签到(天)</span></div>
         <div><b>${monthCount(ym)}</b><span>本月已签(天)</span></div>
