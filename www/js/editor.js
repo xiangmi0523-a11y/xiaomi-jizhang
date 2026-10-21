@@ -93,8 +93,10 @@
       };
       S.settings.lastAcc = E.acc;
       if (E.id) App.updateRecord(E.id, data); else App.addRecord(data);
+      const from = doneEl.getBoundingClientRect();
       h.close();
-      UI.toast(E.id ? '已修改' : '已记一笔');
+      if (E.id) UI.toast('已修改');
+      else App.game.rewardRecord({ x: from.left + from.width / 2, y: from.top + from.height / 2 });
     };
 
     const pickAccount = (title, current, cb) => {

@@ -86,6 +86,7 @@
       <div class="hero-top">
         <button class="month-btn" data-act="homeMonth">${U.ymLabel(H.ym)}<span class="caret">${UI.icons.down}</span></button>
         <div class="hero-actions">
+          ${App.game.pillHTML()}
           <button class="icon-btn" data-act="homeSearch" aria-label="搜索">${UI.icons.search}</button>
           <button class="icon-btn" data-act="homeMode" aria-label="切换视图">${H.mode === 'list' ? UI.icons.cal : UI.icons.list}</button>
         </div>
@@ -96,7 +97,7 @@
         <div><span>结余</span><b>${money(sums.income - sums.expense)}</b></div>
         <div><span>笔数</span><b>${recs.length}</b></div>
       </div>${budHTML}</div>`;
-    return hero + `<div class="body">${H.mode === 'list' ? listHTML(recs, '这个月还没有记录<br>点下面的 ＋ 记第一笔吧') : calHTML(recs)}</div>`;
+    return hero + `<div class="body">${H.mode === 'list' ? listHTML(recs, '这个月还没有记录<br>点下面的 ＋ 记第一笔吧') : calHTML(recs)}</div>` + App.game.signFabHTML();
   };
 
   const calHTML = recs => {

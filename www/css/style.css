@@ -307,3 +307,66 @@ button:disabled { opacity: .35; }
 .lk-pad button { width: 72px; height: 72px; border-radius: 50%; background: var(--card); font-size: 26px; font-weight: 600; box-shadow: var(--shadow); }
 .lk-pad button:active { background: var(--accent); color: var(--accent-ink); }
 .lk-link { display: block; margin: 18px auto 0; color: var(--sub); font-size: 14px; padding: 6px 12px; }
+
+/* ===== 阶段一：金币 & 每日签到（可爱描边风） ===== */
+.hero-actions { align-items: center; }
+.coin-pill {
+  display: inline-flex; align-items: center; gap: 4px; height: 30px; padding: 0 11px 0 7px; margin-right: 6px;
+  border-radius: 999px; background: #fff; color: #3B2A00; border: 2px solid #3B2A00;
+  box-shadow: 0 2px 0 #3B2A00; font-weight: 800; font-size: 15px; font-variant-numeric: tabular-nums;
+}
+.coin-pill .coin-ico { font-size: 17px; line-height: 1; }
+.coin-pill:active { transform: translateY(1px); box-shadow: 0 1px 0 #3B2A00; }
+.coin-pill.bump { animation: coinBump .45s; }
+@keyframes coinBump { 0% { transform: scale(1); } 35% { transform: scale(1.24); } 100% { transform: scale(1); } }
+.coin-fly { position: fixed; z-index: 95; width: 22px; height: 22px; margin: -11px 0 0 -11px; font-size: 22px; line-height: 22px; pointer-events: none; will-change: transform; }
+#toast.gold { background: linear-gradient(135deg, #FFE27A, #FFB020); color: #3B2A00; font-weight: 800; border: 2px solid #3B2A00; box-shadow: 0 3px 0 #3B2A00; }
+
+.sign-fab {
+  position: fixed; right: 14px; bottom: calc(var(--tab-h) + var(--safe-bottom) + 22px); z-index: 8;
+  width: 54px; height: 54px; border-radius: 50%; background: var(--accent); border: 2.5px solid var(--accent-ink);
+  box-shadow: 0 3px 0 var(--accent-ink); display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1;
+}
+.sign-fab:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--accent-ink); }
+.sign-fab .sf-ico { font-size: 21px; }
+.sign-fab .sf-txt { font-size: 11px; font-weight: 800; color: var(--accent-ink); margin-top: 2px; }
+.red-dot { position: absolute; top: -4px; right: -4px; width: 15px; height: 15px; border-radius: 50%; background: #FF4D5E; border: 2.5px solid #fff; animation: dotPulse 1.4s infinite; }
+@keyframes dotPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.25); } }
+
+.sign-wrap.out { opacity: 0; transition: opacity .18s; }
+.sg-card {
+  position: relative; width: min(90%, 348px); border-radius: 28px; padding: 18px 14px 14px; color: var(--text);
+  border: 3px solid #3B2A00; box-shadow: 0 6px 0 #3B2A00; animation: sgIn .32s cubic-bezier(.2, .9, .3, 1.25);
+  background-color: #F9D56E;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Cg fill='%23ffffff' fill-opacity='.3'%3E%3Cg transform='translate(4 6)'%3E%3Cellipse cx='18' cy='27' rx='7' ry='5.5'/%3E%3Ccircle cx='10' cy='19' r='2.8'/%3E%3Ccircle cx='16' cy='14' r='2.8'/%3E%3Ccircle cx='22' cy='14' r='2.8'/%3E%3Ccircle cx='28' cy='19' r='2.8'/%3E%3C/g%3E%3Cg transform='translate(38 40) rotate(24 18 20)'%3E%3Cellipse cx='18' cy='27' rx='7' ry='5.5'/%3E%3Ccircle cx='10' cy='19' r='2.8'/%3E%3Ccircle cx='16' cy='14' r='2.8'/%3E%3Ccircle cx='22' cy='14' r='2.8'/%3E%3Ccircle cx='28' cy='19' r='2.8'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+@keyframes sgIn { 0% { transform: scale(.7) translateY(20px); opacity: 0; } 100% { transform: none; opacity: 1; } }
+.sg-close { position: absolute; right: 10px; top: 10px; width: 34px; height: 34px; border-radius: 50%; background: #fff; border: 2.5px solid #3B2A00; display: grid; place-items: center; color: #3B2A00; z-index: 2; }
+.sg-close svg { width: 18px; height: 18px; }
+.sg-title {
+  margin: 2px 0 6px; text-align: center; font-size: 30px; font-weight: 900; letter-spacing: 3px; color: #fff;
+  text-shadow: -2px -2px 0 #3B2A00, 2px -2px 0 #3B2A00, -2px 2px 0 #3B2A00, 2px 2px 0 #3B2A00, 0 -2px 0 #3B2A00, 0 2px 0 #3B2A00, -2px 0 0 #3B2A00, 2px 0 0 #3B2A00, 0 4px 0 #3B2A00;
+}
+.sg-cat { display: flex; align-items: center; gap: 8px; margin: 4px 2px 10px; }
+.sg-face { font-size: 44px; line-height: 1; flex: 0 0 auto; animation: sgBob 2.2s ease-in-out infinite; }
+@keyframes sgBob { 0%, 100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-4px) rotate(4deg); } }
+.sg-bubble { position: relative; flex: 1; background: #FFC7D3; color: #5A1F2E; border: 2.5px solid #3B2A00; border-radius: 16px 16px 16px 4px; padding: 8px 12px; font-size: 14px; font-weight: 700; line-height: 1.4; }
+.sg-stats { display: flex; gap: 6px; margin-bottom: 10px; }
+.sg-stats > div { flex: 1; background: #fff; border: 2.5px solid #3B2A00; border-radius: 14px; padding: 6px 2px; text-align: center; }
+.sg-stats b { display: block; font-size: 19px; font-weight: 900; color: #3B2A00; font-variant-numeric: tabular-nums; }
+.sg-stats span { font-size: 11px; color: #8C7A52; }
+.sg-board { background: var(--card); border: 2.5px solid #3B2A00; border-radius: 20px; padding: 10px 8px 12px; }
+.sg-month { text-align: center; font-weight: 800; margin-bottom: 6px; }
+.sg-week, .sg-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.sg-week span { text-align: center; font-size: 12px; color: var(--sub); padding-bottom: 2px; }
+.sd { position: relative; aspect-ratio: 1; display: grid; place-items: center; font-size: 14px; font-weight: 700; border-radius: 50%; border: 2px solid transparent; font-variant-numeric: tabular-nums; }
+.sd.past { color: var(--sub); opacity: .55; }
+.sd.today { border: 2px dashed #FF6B81; color: #FF6B81; animation: dotPulse 1.6s infinite; }
+.sd.on { background: #FFC53D; border-color: #3B2A00; color: #3B2A00; opacity: 1; }
+.sd.on::after { content: '🐾'; position: absolute; right: -4px; top: -6px; font-size: 11px; }
+.sd.pop { animation: sdPop .55s; }
+@keyframes sdPop { 0% { transform: scale(.3); } 55% { transform: scale(1.4); } 100% { transform: scale(1); } }
+.sg-btn { width: 100%; margin-top: 12px; padding: 13px 0; border-radius: 18px; background: #FF7A8A; color: #fff; font-size: 18px; font-weight: 900; letter-spacing: 1px; border: 2.5px solid #3B2A00; box-shadow: 0 4px 0 #3B2A00; text-shadow: 0 1px 0 rgba(0, 0, 0, .25); }
+.sg-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #3B2A00; }
+.sg-btn.off { opacity: 1; background: #D8D2C2; color: #8C8372; border-color: #A39B87; box-shadow: 0 4px 0 #A39B87; text-shadow: none; }
+.sg-tip { margin: 10px 0 0; text-align: center; font-size: 12px; color: #6B5A2E; }

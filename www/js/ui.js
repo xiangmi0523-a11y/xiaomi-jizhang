@@ -25,8 +25,9 @@
   };
 
   /* ---------- 轻提示 ---------- */
-  UI.toast = (msg, ms) => {
+  UI.toast = (msg, ms, cls) => {
     const t = document.getElementById('toast');
+    t.classList.toggle('gold', cls === 'gold');
     t.textContent = msg; t.classList.add('show');
     clearTimeout(UI._tt);
     UI._tt = setTimeout(() => t.classList.remove('show'), ms || 1800);
