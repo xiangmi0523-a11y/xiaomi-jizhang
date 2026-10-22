@@ -292,6 +292,9 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
             if let name = body["filename"] as? String, let content = body["content"] as? String {
                 shareFile(name: name, content: content)
             }
+        case "receiptShot":
+            let num = { (k: String) -> CGFloat in CGFloat((body[k] as? NSNumber)?.doubleValue ?? 0) }
+            receiptShot(CGRect(x: num("x"), y: num("y"), width: num("w"), height: num("h")))
         case "mode":
             switch body["value"] as? String {
             case "dark": overrideUserInterfaceStyle = .dark
@@ -379,6 +382,30 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
         sheet.popoverPresentationController?.sourceView = view
         sheet.popoverPresentationController?.sourceRect = CGRect(x: view.bounds.midX, y: view.bounds.midY, width: 0, height: 0)
         present(sheet, animated: true)
+    }
+
+    // MARK: - 每日小票：截取网页里的小票区域，弹出分享面板（可存到相册）
+
+    private func receiptShot(_ rect: CGRect) {
+        let bounds = webView.bounds
+        let r = rect.intersection(bounds)
+        guard !r.isNull, r.width > 10, r.height > 10 else {
+            callJS("App.receipt.onShot(false)")
+            return
+        }
+        let cfg = WKSnapshotConfiguration()
+        cfg.rect = r
+        cfg.afterScreenUpdates = true
+        cfg.snapshotWidth = NSNumber(value: Double(r.width))
+        webView.takeSnapshot(with: cfg) { [weak self] image, _ in
+            guard let self = self else { return }
+            self.callJS("App.receipt.onShot(\(image != nil))")
+            guard let image = image else { return }
+            let sheet = UIActivityViewController(activityItems: [image], applicationActivities: nil)
+            sheet.popoverPresentationController?.sourceView = self.view
+            sheet.popoverPresentationController?.sourceRect = CGRect(x: self.view.bounds.midX, y: self.view.bounds.midY, width: 0, height: 0)
+            self.present(sheet, animated: true)
+        }
     }
 
     // MARK: - 导航：只允许内置页面

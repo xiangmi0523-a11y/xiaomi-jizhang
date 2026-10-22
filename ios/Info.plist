@@ -46,6 +46,8 @@
 			</array>
 		</dict>
 	</array>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>把每日小票保存到相册</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>用面容 ID 快速解锁晓米记账</string>
 	<key>UIFileSharingEnabled</key>

@@ -42,7 +42,7 @@
     const bits = [];
     if (s.expense) bits.push('支出 ' + money(s.expense));
     if (s.income) bits.push('收入 ' + money(s.income));
-    return `<div class="day-head"><span>${U.dayLabel(date)}<em>周${U.WD[U.wd(date)]}</em></span><span class="muted">${bits.join('　')}</span></div>`;
+    return `<div class="day-head"><span>${U.dayLabel(date)}<em>周${U.WD[U.wd(date)]}</em><button class="rc-day" data-act="openReceipt" data-d="${date}" aria-label="当日小票">${UI.icons.receipt}</button></span><span class="muted">${bits.join('　')}</span></div>`;
   };
   const listHTML = (recs, emptyMsg) => {
     if (!recs.length) return `<div class="empty"><div class="empty-cat">${App.catArt.svg('n1', { w: 130 })}</div><p>${emptyMsg || '这里还没有记录'}</p></div>`;
@@ -83,6 +83,7 @@
         <button class="month-btn" data-act="homeMonth">${U.ymLabel(H.ym)}<span class="caret">${UI.icons.down}</span></button>
         <div class="hero-actions">
           ${App.game.pillHTML()}
+          <button class="icon-btn" data-act="openReceipt" aria-label="今日小票">${UI.icons.receipt}</button>
           <button class="icon-btn" data-act="homeSearch" aria-label="搜索">${UI.icons.search}</button>
           <button class="icon-btn" data-act="homeMode" aria-label="切换视图">${H.mode === 'list' ? UI.icons.cal : UI.icons.list}</button>
         </div>
@@ -117,7 +118,7 @@
     const heads = Array.from({ length: 7 }, (_, k) => `<div>${U.WD[(ws + k) % 7]}</div>`).join('');
     const dayRecs = recs.filter(r => r.date === H.sel);
     return `<div class="card cal"><div class="cal-head">${heads}</div><div class="cal-grid">${cells}</div></div>` +
-      `<div class="day-head"><span>${U.dayLabel(H.sel)}<em>周${U.WD[U.wd(H.sel)]}</em></span><span class="muted">${dayRecs.length ? dayRecs.length + ' 笔' : ''}</span></div>` +
+      `<div class="day-head"><span>${U.dayLabel(H.sel)}<em>周${U.WD[U.wd(H.sel)]}</em><button class="rc-day" data-act="openReceipt" data-d="${H.sel}" aria-label="当日小票">${UI.icons.receipt}</button></span><span class="muted">${dayRecs.length ? dayRecs.length + ' 笔' : ''}</span></div>` +
       (dayRecs.length ? `<div class="card list">${dayRecs.map(r => App.recRow(r)).join('')}</div>` : '<div class="empty small"><p>这一天没有记录</p></div>');
   };
 
