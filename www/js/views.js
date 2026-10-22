@@ -346,11 +346,13 @@
     UI.sheet({
       title: a ? '编辑账户' : '添加账户',
       render: () => {
-        const initVal = a ? Math.abs(a.init || 0) : 0;
+        // 信用卡填「欠款」（存成负数）；其他账户按原样显示，负数前面带 -
+        const iv = a ? (a.type === 'credit' ? -(a.init || 0) : (a.init || 0)) : 0;
+        const initStr = iv ? (iv < 0 ? '-' : '') + U.centsToStr(Math.abs(iv)) : '';
         return `<div class="form">
           <label class="field"><span>名称</span><input id="af-name" type="text" maxlength="12" placeholder="例如：招商银行卡" value="${esc(a ? a.name : '')}"></label>
           <label class="field"><span>类型</span><select id="af-type">${Object.keys(App.ACC_TYPES).map(k => `<option value="${k}"${k === st.type ? ' selected' : ''}>${App.ACC_TYPES[k].i} ${App.ACC_TYPES[k].n}</option>`).join('')}</select></label>
-          <label class="field"><span id="af-init-lbl">${st.type === 'credit' ? '当前欠款' : '初始余额'}</span><input id="af-init" type="text" inputmode="decimal" placeholder="0.00" value="${initVal ? U.centsToStr(initVal) : ''}"></label>
+          <label class="field"><span id="af-init-lbl">${st.type === 'credit' ? '当前欠款' : '初始余额'}</span><input id="af-init" type="text" inputmode="decimal" placeholder="0.00" value="${initStr}"></label>
           <p class="hint">初始余额是「开始记账那一刻」账户里的钱，之后的收支会自动加减。</p>
           <button class="btn primary wide" data-af="save">保存</button>
           ${a ? `<button class="btn ghost wide" data-af="hide">${a.hidden ? '取消隐藏' : '隐藏此账户'}</button><button class="btn danger wide" data-af="del">删除账户</button>` : ''}
@@ -368,7 +370,10 @@
             const name = b.querySelector('#af-name').value.trim();
             if (!name) { UI.toast('请填写账户名称'); return; }
             if (S.accounts.some(x => x.name === name && (!a || x.id !== a.id))) { UI.toast('已经有同名账户了'); return; }
-            let init = U.toCents(b.querySelector('#af-init').value);
+            const raw = b.querySelector('#af-init').value.trim().replace(/[,，\s]/g, '');
+            let init = U.toCents(raw.replace(/^-/, ''));
+            if (raw && !init && !/^-?0*\.?0*$/.test(raw)) { UI.toast('金额格式不对，只能填数字'); return; }
+            if (raw.startsWith('-')) init = -init;
             if (st.type === 'credit') init = -init;
             if (a) { a.name = name; a.type = st.type; a.init = init; }
             else S.accounts.push({ id: U.uid('a'), name, type: st.type, init });

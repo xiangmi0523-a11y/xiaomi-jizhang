@@ -41,7 +41,9 @@
     return String(Math.round(y * 10) / 10);
   };
   U.toCents = str => {
-    str = String(str == null ? '' : str).trim();
+    // 容忍「8,000」「¥ 50」「12。5」这类写法，不会被当成 0
+    str = String(str == null ? '' : str).trim().replace(/[,，\s¥￥元]/g, '').replace(/[。．]/g, '.')
+      .replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
     if (!/^\d*\.?\d*$/.test(str) || str === '' || str === '.') return 0;
     const p = str.split('.');
     return parseInt(p[0] || '0', 10) * 100 + parseInt(((p[1] || '') + '00').slice(0, 2), 10);

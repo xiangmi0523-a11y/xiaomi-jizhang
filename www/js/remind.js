@@ -3,7 +3,7 @@
   'use strict';
   const App = window.App, U = App.U, UI = App.UI, A = App.A, money = U.money;
   const R = App.remind = {};
-  R.DAYS = 14;   // 预排未来 14 天（每次打开 App 都会续上）
+  R.DAYS = 30;   // 预排未来 30 天（每次打开 App 都会续上；一个月不打开也照样提醒）
 
   R.cfg = () => {
     const s = App.S.settings;

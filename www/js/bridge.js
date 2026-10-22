@@ -9,7 +9,10 @@
   };
   App.sendWidget = sendWidget;
   const flush = App.flush;
-  App.flush = () => { flush(); sendWidget(); if (App.backup) App.backup.run(); if (App.remind) App.remind.sync(); };
+  // 告诉原生层密码锁是否开启：开启时切后台会盖一层遮罩，多任务界面里看不到账本
+  let lastPrivacy = null;
+  const sendPrivacy = () => { const on = !!(App.S && App.S.settings.pin); if (on !== lastPrivacy) { lastPrivacy = on; App.native('privacy', { on }); } };
+  App.flush = () => { flush(); sendWidget(); sendPrivacy(); if (App.backup) App.backup.run(); if (App.remind) App.remind.sync(); };
 
   // 小组件按钮 / 快捷指令 / 敲击背面 → 原生层调用这里，直接弹出记账面板
   App.quickAdd = () => {

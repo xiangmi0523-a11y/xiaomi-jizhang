@@ -82,6 +82,8 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
         // 切后台 / 来电 / 下拉控制中心时立刻让网页把数据存一次
         NotificationCenter.default.addObserver(self, selector: #selector(appWillResign),
                                                name: UIApplication.willResignActiveNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(appDidBecomeActive),
+                                               name: UIApplication.didBecomeActiveNotification, object: nil)
 
         if let url = URL(string: "\(LocalSchemeHandler.scheme)://app/index.html") {
             web.load(URLRequest(url: url))
@@ -89,8 +91,49 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
     }
 
     @objc private func appWillResign() {
+        showPrivacyCover()
         guard pageReady else { return }
         webView.evaluateJavaScript("window.App && App.flush && App.flush()", completionHandler: nil)
+    }
+
+    @objc private func appDidBecomeActive() {
+        hidePrivacyCover()
+    }
+
+    // MARK: - 隐私遮罩：开了密码锁时，切到后台前盖一层，多任务界面里看不到账本内容
+
+    private static let privacyKey = "privacyCoverOn"
+    private var privacyCover: UIView?
+
+    private func showPrivacyCover() {
+        guard UserDefaults.standard.bool(forKey: Self.privacyKey), privacyCover == nil else { return }
+        let cover = UIView(frame: view.bounds)
+        cover.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        cover.backgroundColor = view.backgroundColor
+        let blur = UIVisualEffectView(effect: UIBlurEffect(style: .systemThickMaterial))
+        blur.frame = cover.bounds
+        blur.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        cover.addSubview(blur)
+        let label = UILabel()
+        label.text = "🔒\n晓米记账"
+        label.numberOfLines = 2
+        label.textAlignment = .center
+        label.font = .systemFont(ofSize: 22, weight: .bold)
+        label.textColor = .secondaryLabel
+        label.translatesAutoresizingMaskIntoConstraints = false
+        cover.addSubview(label)
+        NSLayoutConstraint.activate([
+            label.centerXAnchor.constraint(equalTo: cover.centerXAnchor),
+            label.centerYAnchor.constraint(equalTo: cover.centerYAnchor)
+        ])
+        view.addSubview(cover)
+        privacyCover = cover
+    }
+
+    private func hidePrivacyCover() {
+        guard let cover = privacyCover else { return }
+        privacyCover = nil
+        UIView.animate(withDuration: 0.2, animations: { cover.alpha = 0 }, completion: { _ in cover.removeFromSuperview() })
     }
 
     /// 网页进程被系统回收（内存紧张时常见）会白屏：用最新的账本文件重新注入启动脚本后重新加载
@@ -340,6 +383,8 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
             if let name = body["filename"] as? String, let content = body["content"] as? String {
                 shareFile(name: name, content: content)
             }
+        case "privacy":
+            UserDefaults.standard.set((body["on"] as? Bool) ?? false, forKey: Self.privacyKey)
         case "receiptShot":
             let num = { (k: String) -> CGFloat in CGFloat((body[k] as? NSNumber)?.doubleValue ?? 0) }
             receiptShot(CGRect(x: num("x"), y: num("y"), width: num("w"), height: num("h")))
