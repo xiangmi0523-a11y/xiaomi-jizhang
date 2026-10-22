@@ -12,6 +12,25 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
     private var pageReady = false
     private let ioQueue = DispatchQueue(label: "xiaomi.io", qos: .utility)
 
+    /// 写文件时向系统申请一点后台时间：切到后台、锁屏的瞬间保存的数据也能写完，不会只写一半
+    private final class BGTask {
+        var id: UIBackgroundTaskIdentifier = .invalid
+        func end() {
+            guard id != .invalid else { return }
+            UIApplication.shared.endBackgroundTask(id)
+            id = .invalid
+        }
+    }
+
+    private func runIO(_ name: String, _ work: @escaping () -> Void) {
+        let bg = BGTask()
+        bg.id = UIApplication.shared.beginBackgroundTask(withName: name) { bg.end() }
+        ioQueue.async {
+            work()
+            DispatchQueue.main.async { bg.end() }
+        }
+    }
+
     private var dataFileURL: URL {
         let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         return dir.appendingPathComponent("xiaomi-data.json")
@@ -60,9 +79,28 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
                                                name: UIResponder.keyboardWillChangeFrameNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillHide(_:)),
                                                name: UIResponder.keyboardWillHideNotification, object: nil)
+        // 切后台 / 来电 / 下拉控制中心时立刻让网页把数据存一次
+        NotificationCenter.default.addObserver(self, selector: #selector(appWillResign),
+                                               name: UIApplication.willResignActiveNotification, object: nil)
 
         if let url = URL(string: "\(LocalSchemeHandler.scheme)://app/index.html") {
             web.load(URLRequest(url: url))
+        }
+    }
+
+    @objc private func appWillResign() {
+        guard pageReady else { return }
+        webView.evaluateJavaScript("window.App && App.flush && App.flush()", completionHandler: nil)
+    }
+
+    /// 网页进程被系统回收（内存紧张时常见）会白屏：用最新的账本文件重新注入启动脚本后重新加载
+    func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+        pageReady = false
+        let controller = webView.configuration.userContentController
+        controller.removeAllUserScripts()
+        controller.addUserScript(WKUserScript(source: bootstrapScript(), injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        if let url = URL(string: "\(LocalSchemeHandler.scheme)://app/index.html") {
+            webView.load(URLRequest(url: url))
         }
     }
 
@@ -72,7 +110,10 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
         if let folder = backupFolderURL() {
             js += " window.__BACKUP_FOLDER__ = \(jsString(folder.lastPathComponent));"
         }
-        if let data = try? Data(contentsOf: dataFileURL), !data.isEmpty {
+        // 在 IO 队列里读：保证还没写完的保存先写完，读到的是最新数据
+        let url = dataFileURL
+        let saved: Data? = ioQueue.sync { try? Data(contentsOf: url) }
+        if let data = saved, !data.isEmpty {
             js += " window.__NATIVE_B64__ = \"\(data.base64EncodedString())\";"
         }
         return js
@@ -82,6 +123,9 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
         let escaped = s.replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "\"", with: "\\\"")
             .replacingOccurrences(of: "\n", with: " ")
+            .replacingOccurrences(of: "\r", with: " ")
+            .replacingOccurrences(of: "\u{2028}", with: " ")
+            .replacingOccurrences(of: "\u{2029}", with: " ")
         return "\"" + escaped + "\""
     }
 
@@ -206,7 +250,7 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
     }
 
     private func autoBackup(filename: String, content: String) {
-        ioQueue.async { [weak self] in
+        runIO("xm-backup") { [weak self] in
             guard let self = self else { return }
             guard let folder = self.backupFolderURL() else {
                 self.callJS("App.backup && App.backup.onAuto(false, '', '还没有选择备份文件夹')")
@@ -231,13 +275,17 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
 
     /// App 内的本地快照（「文件」App → 我的 iPhone → 晓米记账 → 自动备份），保留最近 7 份
     private func saveSnapshot(filename: String, content: String) {
-        ioQueue.async { [weak self] in
+        let safeName = filename.replacingOccurrences(of: "/", with: "-")
+        runIO("xm-snapshot") { [weak self] in
             guard let self = self else { return }
             let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
                 .appendingPathComponent("自动备份", isDirectory: true)
             try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-            try? Data(content.utf8).write(to: dir.appendingPathComponent(filename), options: .atomic)
-            self.pruneBackups(in: dir, prefix: "晓米记账自动备份-", keep: 7, coordinated: false)
+            try? Data(content.utf8).write(to: dir.appendingPathComponent(safeName), options: .atomic)
+            // 每天的自动快照留 7 份，导入/清空前的「操作前备份」留 5 份；损坏数据的存档不自动删
+            for (prefix, keep) in [("晓米记账自动备份-", 7), ("晓米记账-操作前备份-", 5)] where safeName.hasPrefix(prefix) {
+                self.pruneBackups(in: dir, prefix: prefix, keep: keep, coordinated: false)
+            }
         }
     }
 
@@ -340,7 +388,7 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
 
     private func saveData(_ text: String) {
         let url = dataFileURL
-        ioQueue.async {
+        runIO("xm-save") {
             try? Data(text.utf8).write(to: url, options: .atomic)
         }
     }

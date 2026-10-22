@@ -284,11 +284,13 @@
   A.statCat = el => {
     const id = el.dataset.id, d = statsData();
     const list = App.sortDesc(d.recs.filter(r => r.cat === id));
-    const cat = App.cat(id), sum = list.reduce((a, r) => a + r.amount, 0);
+    const cat = App.cat(id);
     UI.sheet({
       title: cat.icon + ' ' + cat.name, full: true, autoRefresh: true,
       render: () => {
         const cur = App.sortDesc(App.S.records.filter(r => r.cat === id && list.some(x => x.id === r.id)));
+        const sum = cur.reduce((a, r) => a + r.amount, 0);
+        if (!cur.length) return '<div class="empty small"><p>这里的记录都已经删除或改到别的分类了</p></div>';
         return `<div class="day-head"><span>共 ${cur.length} 笔</span><span class="muted">合计 ${money(sum)}</span></div><div class="card list">${cur.map(r => App.recRow(r, { showDate: true })).join('')}</div>`;
       }
     });

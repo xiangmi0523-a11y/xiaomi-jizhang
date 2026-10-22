@@ -134,6 +134,7 @@
             const name = b.querySelector('#cf-name').value.trim();
             if (!name) { UI.toast('请填写分类名称'); return; }
             if (S.cats[type].some(c => c.name === name && (!cat || c.id !== cat.id))) { UI.toast('已经有同名分类了'); return; }
+            icon = U.cleanIcon(icon);
             if (cat) { cat.name = name; cat.icon = icon; }
             else S.cats[type].push({ id: U.uid('c'), name, icon });
             App.changed(); h.close(); done(); UI.toast('已保存');

@@ -184,7 +184,12 @@
   const checkNewDay = () => {
     const t = U.today();
     if (t === lastDay) return;
+    const prev = lastDay;
     lastDay = t;
+    // App 一直挂在后台跨了天/跨了月：原来停在「今天 / 本月 / 今年」的页面跟着走到新的一天，不会还显示上个月
+    const H = App.home, T = App.statsState;
+    if (H) { if (H.ym === prev.slice(0, 7)) H.ym = t.slice(0, 7); if (H.sel === prev) H.sel = t; }
+    if (T) { if (T.ym === prev.slice(0, 7)) T.ym = t.slice(0, 7); if (T.year === +prev.slice(0, 4)) T.year = +t.slice(0, 4); }
     if (App.S) { if (App.mood) App.mood.decay(); if (App.smart) App.smart.run(); App.changed(); paint(); }
   };
   setInterval(checkNewDay, 15000);

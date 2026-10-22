@@ -14,8 +14,14 @@
   BK.folder = () => window.__BACKUP_FOLDER__ || '';
   BK.fileName = () => `晓米记账自动备份-${U.today()}.json`;
   const sig = () => {
-    let t = 0; App.S.records.forEach(r => { if ((r.ts || 0) > t) t = r.ts; });
-    return [App.S.records.length, t, App.S.game.coins, App.S.accounts.length, Object.keys(App.S.game.cats).length].join(':');
+    // 记录条数 + 最新时间 + 金额/日期/备注的简易校验和：改一笔金额、日期或备注也会触发备份
+    let t = 0, h = 0;
+    App.S.records.forEach(r => {
+      if ((r.ts || 0) > t) t = r.ts;
+      const k = r.id + r.amount + r.date + r.cat + r.acc + (r.note || '');
+      for (let i = 0; i < k.length; i++) h = (h * 31 + k.charCodeAt(i)) | 0;
+    });
+    return [App.S.records.length, t, h, App.S.game.coins, App.S.accounts.length, Object.keys(App.S.game.cats).length, App.S.saving.plans.length].join(':');
   };
   const daysSince = d => (d ? Math.round((U.parse(U.today()) - U.parse(d)) / 86400000) : 9999);
 

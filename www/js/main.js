@@ -35,7 +35,7 @@
 
   /* ---------- 密码锁 ---------- */
   App.bioName = () => ({ faceID: '面容 ID', touchID: '触控 ID', opticID: '视控 ID' }[window.__BIO__] || '面容 ID');
-  const Lock = App.Lock = { active: false };
+  const Lock = App.Lock = { active: false, fails: 0, until: 0 };   // 连续输错 5 次要等 30 秒，防止乱试
   Lock.ask = (title, o = {}) => new Promise(res => {
     const el = document.getElementById('lock');
     let buf = '', mode = 'pad';
@@ -68,16 +68,25 @@
       if (a === 'back') { mode = 'pad'; buf = ''; paint(); return; }
       if (a === 'reset') { App.replaceState(null); close(''); UI.toast('已重置'); return; }
       if (a !== 'k') return;
+      const wait = Math.ceil((Lock.until - Date.now()) / 1000);
+      if (wait > 0) { buf = ''; paint(`输错太多次啦，请 ${wait} 秒后再试`); return; }
       const v = b.dataset.v;
       if (v === 'del') buf = buf.slice(0, -1);
       else if (buf.length < 4) buf += v;
       if (buf.length < 4) { paint(); return; }
       if (o.validate && !o.validate(buf)) {
         paint(); const d = el.querySelector('#lkDots'); if (d) d.classList.add('shake');
-        const code = buf; buf = '';
-        setTimeout(() => { if (Lock.active) paint(o.mismatch || '密码不对'); }, 380);
-        void code; return;
+        buf = '';
+        let msg = o.mismatch || '密码不对';
+        if (o.forgot || o.mismatch === '密码不对') {   // 只对「验证密码」限次，设置新密码时的两次确认不算
+          Lock.fails++;
+          if (Lock.fails >= 5) { Lock.fails = 0; Lock.until = Date.now() + 30000; msg = '输错太多次啦，请 30 秒后再试'; }
+          else if (Lock.fails >= 3) msg += `，还可以试 ${5 - Lock.fails} 次`;
+        }
+        setTimeout(() => { if (Lock.active) paint(msg); }, 380);
+        return;
       }
+      Lock.fails = 0;
       paint();
       const out = buf; setTimeout(() => close(out), 90);
     };
@@ -120,7 +129,8 @@
     setTimeout(() => App.smart.run(), 500);
     setTimeout(() => { App.backup.run(); App.backup.remind(); App.remind.sync(true); }, 2500);
     setTimeout(() => App.budget.check(), 800);
-    if (App.loadError) UI.toast('数据文件读取失败，已用新账本启动，原数据已另存', 4200);
+    if (App.loadError) UI.toast('数据文件读取失败，已用新账本启动；原数据另存在「文件 → 晓米记账 → 自动备份」', 5000);
+    else if (App.loadRecovered) UI.toast('主数据文件损坏，已从备用副本恢复账本', 4200);
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();

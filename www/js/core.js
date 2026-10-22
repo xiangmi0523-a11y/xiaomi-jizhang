@@ -117,6 +117,19 @@
     settings: { theme: 'millet', mode: 'auto', weekStart: 1, pin: '', lastAcc: '', bio: false, backup: {}, remind: { on: false, time: '21:00' } }
   });
 
+  const DATE = /^\d{4}-\d{2}-\d{2}$/, TYPES = ['expense', 'income', 'transfer'];
+  const toInt = v => { const n = Math.round(Number(v)); return Number.isFinite(n) ? n : 0; };
+  const cleanRec = r => {
+    if (!r || typeof r !== 'object' || !DATE.test(r.date || '') || !TYPES.includes(r.type)) return null;
+    const amount = toInt(r.amount);
+    if (amount <= 0) return null;
+    return Object.assign({}, r, {
+      id: r.id ? String(r.id) : U.uid('r'), amount, acc: String(r.acc || ''), to: r.to ? String(r.to) : '',
+      cat: r.cat ? String(r.cat) : '', note: r.note == null ? '' : String(r.note).slice(0, 200), ts: Number.isFinite(+r.ts) ? +r.ts : 0
+    });
+  };
+  U.cleanIcon = v => Array.from(String(v == null ? '' : v).replace(/[<>&"'`\\]/g, '').trim()).slice(0, 8).join('') || '📦';
+
   function normalize(s) {
     const d = App.defaults();
     s = s && typeof s === 'object' ? s : {};
@@ -141,6 +154,18 @@
       income: (s.cats && Array.isArray(s.cats.income)) ? s.cats.income : d.cats.income
     };
     ['accounts', 'records', 'recurring'].forEach(k => { if (!Array.isArray(out[k])) out[k] = d[k]; });
+    // 逐条清洗：导入的备份或损坏的数据里有坏记录时，丢掉坏的、保留好的，避免金额变成字符串拼接、页面报错
+    out.records = out.records.map(cleanRec).filter(Boolean);
+    out.accounts = out.accounts.filter(a => a && typeof a === 'object' && a.id).map(a => Object.assign({}, a, {
+      id: String(a.id), name: String(a.name == null ? '账户' : a.name).slice(0, 20), type: App.ACC_TYPES[a.type] ? a.type : 'other', init: toInt(a.init)
+    }));
+    if (!out.accounts.length) out.accounts = d.accounts;
+    ['expense', 'income'].forEach(t => {
+      out.cats[t] = out.cats[t].filter(c => c && typeof c === 'object' && c.id).map(c => Object.assign({}, c, { id: String(c.id), name: String(c.name == null ? '分类' : c.name).slice(0, 12), icon: U.cleanIcon(c.icon) }));
+      if (!out.cats[t].length) out.cats[t] = d.cats[t];
+    });
+    out.recurring = out.recurring.filter(r => r && typeof r === 'object' && DATE.test(r.start || '') && App.FREQ[r.freq] && toInt(r.amount) > 0)
+      .map(r => Object.assign({}, r, { amount: toInt(r.amount), last: DATE.test(r.last || '') ? r.last : '' }));
     return out;
   }
   App.normalize = normalize;
@@ -154,22 +179,28 @@
     return false;
   };
 
+  const tryParse = raw => { try { const o = JSON.parse(raw); return o && typeof o === 'object' && !Array.isArray(o) ? o : null; } catch (e) { return null; } };
   App.load = () => {
-    let raw = '';
+    let nativeRaw = '', localRaw = '';
     try {
       if (window.__NATIVE_B64__) {
         const bin = atob(window.__NATIVE_B64__);
-        raw = new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0)));
+        nativeRaw = new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0)));
       }
-    } catch (e) { raw = ''; }
-    if (!raw) { try { raw = localStorage.getItem(KEY) || ''; } catch (e) { raw = ''; } }
-    let parsed = null;
-    if (raw) {
-      try { parsed = JSON.parse(raw); } catch (e) {
-        parsed = null;
-        try { localStorage.setItem(KEY + '_corrupt', raw); } catch (e2) { /* ignore */ }
-        App.loadError = true;
-      }
+    } catch (e) { nativeRaw = ''; }
+    try { localRaw = localStorage.getItem(KEY) || ''; } catch (e) { localRaw = ''; }
+    // 优先用原生文件；它坏了就退回网页里的备用副本；两份都坏才用新账本，并把坏数据另存一份，绝不直接丢掉
+    let parsed = nativeRaw ? tryParse(nativeRaw) : null;
+    const bad = [];
+    if (nativeRaw && !parsed) bad.push(nativeRaw);
+    if (!parsed && localRaw) { parsed = tryParse(localRaw); if (!parsed) bad.push(localRaw); else if (bad.length) App.loadRecovered = true; }
+    if (bad.length) {
+      const d = new Date(), tag = U.today() + '-' + U.pad(d.getHours()) + U.pad(d.getMinutes()) + U.pad(d.getSeconds());
+      bad.forEach((raw, i) => {
+        App.native('snapshot', { filename: `晓米记账-损坏的数据-${tag}-${i + 1}.json`, content: raw });
+        try { localStorage.setItem(KEY + '_corrupt' + i, raw); } catch (e) { /* ignore */ }
+      });
+      if (!parsed) App.loadError = true;
     }
     App.S = normalize(parsed);
   };
@@ -184,7 +215,13 @@
   };
   const schedSave = () => { clearTimeout(saveTimer); saveTimer = setTimeout(App.flush, 250); };
   App.changed = () => { schedSave(); if (App.render) App.render(); };
-  App.replaceState = obj => { App.S = normalize(obj); App.flush(); if (App.applyTheme) App.applyTheme(); if (App.render) App.render(); };
+  // 覆盖/清空之前，先在 App 内存一份「操作前备份」（文件 App → 晓米记账 → 自动备份），手滑了也能找回
+  App.safetyCopy = () => {
+    if (!App.S || !App.S.records.length) return;
+    const d = new Date();
+    App.native('snapshot', { filename: `晓米记账-操作前备份-${U.today()}-${U.pad(d.getHours())}${U.pad(d.getMinutes())}${U.pad(d.getSeconds())}.json`, content: JSON.stringify(App.S) });
+  };
+  App.replaceState = obj => { App.safetyCopy(); App.S = normalize(obj); App.flush(); if (App.applyTheme) App.applyTheme(); if (App.render) App.render(); };
 
   App.shareFile = (filename, content, mime) => {
     if (App.native('export', { filename, content })) return;
@@ -271,7 +308,8 @@
 
   /* ---------- 导出 ---------- */
   App.csv = () => {
-    const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+    // 文字列以 = + - @ 开头时加 ' 前缀，防止 Excel 把备注当成公式执行
+    const q = v => { let t = String(v == null ? '' : v); if (/^[=+\-@\t\r]/.test(t) && !/^-?\d+(\.\d+)?$/.test(t)) t = "'" + t; return '"' + t.replace(/"/g, '""') + '"'; };
     const rows = [['日期', '类型', '分类', '金额', '账户', '转入账户', '备注']];
     const label = { expense: '支出', income: '收入', transfer: '转账' };
     App.S.records.slice().sort((a, b) => a.date === b.date ? (a.ts || 0) - (b.ts || 0) : (a.date < b.date ? -1 : 1)).forEach(r => {

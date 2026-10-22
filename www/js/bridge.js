@@ -14,6 +14,7 @@
   // 小组件按钮 / 快捷指令 / 敲击背面 → 原生层调用这里，直接弹出记账面板
   App.quickAdd = () => {
     if (App.UI && App.UI.closeAll) App.UI.closeAll();
+    if (App.receipt && App.receipt.close) App.receipt.close();
     App.tab = 'home';
     App.render(false);
     App.openEditor({});

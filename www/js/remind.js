@@ -90,8 +90,11 @@
       onMount: h => {
         h.body.addEventListener('change', e => {
           if (e.target.id !== 'rm-time' || !e.target.value) return;
-          R.cfg().time = e.target.value; App.changed(); R.sync(true);
-          UI.toast('提醒时间改成 ' + e.target.value);
+          const v = e.target.value.slice(0, 5);   // 有的系统会给出 21:00:00，只取到分钟
+          if (!/^\d{2}:\d{2}$/.test(v)) return;
+          e.target.value = v;
+          R.cfg().time = v; App.changed(); R.sync(true);
+          UI.toast('提醒时间改成 ' + v);
         });
         h.body.addEventListener('click', e => {
           const b = e.target.closest('[data-rm]'); if (!b) return;

@@ -80,7 +80,9 @@
       E.expr = e; paintAmount();
     };
 
+    let saved = false;   // 防止连点「完成」记成两笔
     const save = () => {
+      if (saved) return;
       const amt = U.evalExpr(E.expr);
       if (amt <= 0) { UI.toast('请输入金额'); return; }
       if (E.type === 'transfer') {
@@ -91,6 +93,8 @@
         type: E.type, amount: amt, cat: E.type === 'transfer' ? '' : E.cat, acc: E.acc,
         to: E.type === 'transfer' ? E.to : '', date: E.date, note: noteEl.value.trim()
       };
+      if (E.id && !S.records.some(r => r.id === E.id)) { h.close(); UI.toast('这笔记录已经被删除了'); return; }
+      saved = true;
       S.settings.lastAcc = E.acc;
       const added = E.id ? null : App.addRecord(data);
       if (E.id) App.updateRecord(E.id, data);

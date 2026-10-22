@@ -32,24 +32,30 @@
   SV.pending = p => !p.finishedAt && !!SV.period(p) && !SV.checkedNow(p);
   SV.active = () => st().plans.filter(p => !p.finishedAt);
   SV.pendingCount = () => SV.active().filter(SV.pending).length;
-  const rewardedToday = () => st().plans.reduce((n, p) => n + p.log.filter(l => l.rw && l.d === U.today()).length, 0);
+  // 每天的打卡奖励次数记在游戏数据里（删掉计划也不会清零，防止「建计划→打卡→删计划」反复刷金币）
+  const rwState = () => { const g = App.S.game; if (!g.svRw || g.svRw.d !== U.today()) g.svRw = { d: U.today(), n: 0 }; return g.svRw; };
+  const rewardedToday = () => rwState().n;
+  // 完成奖励的门槛：目标至少 ¥100，并且至少在 7 个不同的日子存过钱
+  SV.BONUS_MIN = 10000; SV.BONUS_DAYS = 7;
+  SV.bonusOK = p => SV.target(p) >= SV.BONUS_MIN && new Set(p.log.map(l => l.d)).size >= SV.BONUS_DAYS;
 
   /* ---------- 打卡 / 撤销 ---------- */
   const afterDeposit = (p, entry) => {
     let msg = `存入 ¥${money(entry.amt)}`;
     if (rewardedToday() < SV.DAILY_CAP) {
-      entry.rw = 1; App.S.game.coins += SV.REWARD; App.game.shown = null; msg += `，奖励 ${SV.REWARD} 金币`;
+      entry.rw = 1; rwState().n++; App.S.game.coins += SV.REWARD; App.game.shown = null; msg += `，奖励 ${SV.REWARD} 金币`;
     }
     if (!p.finishedAt && SV.saved(p) >= SV.target(p)) {
       p.finishedAt = U.today();
-      if (!p.bonus) { p.bonus = 1; App.S.game.coins += SV.FINISH_BONUS; }
+      const bonus = !p.bonus && SV.bonusOK(p);
+      if (bonus) { p.bonus = 1; App.S.game.coins += SV.FINISH_BONUS; App.game.shown = null; }
       App.changed();
       App.budget.enqueue(() => {
         const el = document.createElement('div');
         el.className = 'wn good';
         el.innerHTML = `<div class="wn-card"><div class="wn-cat">${App.catArt.svg(App.budget.catId(), { w: 170, mood: 'happy' })}</div>
           <div class="wn-title">存钱计划完成啦！🎉</div>
-          <p class="wn-msg">「${esc(p.name)}」一共存下 <b>¥${money(SV.saved(p))}</b>，太厉害了！奖励 <b>${SV.FINISH_BONUS} 金币</b>，猫咪们为你骄傲喵～</p>
+          <p class="wn-msg">「${esc(p.name)}」一共存下 <b>¥${money(SV.saved(p))}</b>，太厉害了！${bonus ? `奖励 <b>${SV.FINISH_BONUS} 金币</b>，` : ''}猫咪们为你骄傲喵～</p>
           <div class="wn-btns"><button data-wn="ok" class="ok">好耶！</button></div></div>`;
         el.addEventListener('click', e => { if (e.target.closest('[data-wn]') || e.target === el) App.budget.closeCard(el); });
         return el;
@@ -76,7 +82,10 @@
   SV.undo = (p, entry) => {
     p.log = p.log.filter(l => l !== entry);
     if (entry.idx != null) delete p.done[entry.idx];
-    if (entry.rw) App.S.game.coins = Math.max(0, App.S.game.coins - SV.REWARD);
+    if (entry.rw) {
+      App.S.game.coins = Math.max(0, App.S.game.coins - SV.REWARD);
+      if (entry.d === U.today()) { const r = rwState(); r.n = Math.max(0, r.n - 1); }
+    }
     if (p.finishedAt && SV.saved(p) < SV.target(p)) {
       p.finishedAt = null;
       if (p.bonus) { p.bonus = 0; App.S.game.coins = Math.max(0, App.S.game.coins - SV.FINISH_BONUS); }
@@ -210,7 +219,7 @@
           </div>
           ${body}
           ${logs ? `<div class="card pad"><div class="card-title">最近存入</div>${logs}</div>` : ''}
-          <p class="hint center">每次打卡奖励 ${SV.REWARD} 金币（每天最多 ${SV.DAILY_CAP} 次），完成计划再奖励 ${SV.FINISH_BONUS} 金币</p>
+          <p class="hint center">每次打卡奖励 ${SV.REWARD} 金币（每天最多 ${SV.DAILY_CAP} 次）；目标 ≥ ¥${SV.BONUS_MIN / 100}、坚持 ${SV.BONUS_DAYS} 天以上完成计划，再奖励 ${SV.FINISH_BONUS} 金币</p>
           <button class="btn danger wide" data-sv="del">删除这个计划</button>
         </div>`;
       },
@@ -223,7 +232,11 @@
             if (p.done[i]) {
               const entry = p.log.find(l => l.idx === i);
               UI.confirm({ title: '撤销这次打卡？', msg: `会扣掉这次存入的 ¥${money(p.cells[i])}${entry && entry.rw ? '，并收回奖励的金币' : ''}`, ok: '撤销', danger: true })
-                .then(ok => { if (ok && entry) SV.undo(p, entry); });
+                .then(ok => {
+                  if (!ok) return;
+                  if (entry) SV.undo(p, entry);
+                  else { delete p.done[i]; App.changed(); }   // 打卡记录丢了也能把格子撤回来
+                });
             } else {
               SV.depositCell(p, i);
               requestAnimationFrame(() => { const c = h.body.querySelector(`[data-cell="${i}"]`); if (c) c.classList.add('pop'); });
