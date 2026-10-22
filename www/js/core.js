@@ -113,7 +113,8 @@
     recurring: [],
     game: { coins: 100, signed: [], progress: 0, cats: {}, inn: { slots: {}, owned: [] }, themes: [] },
     smart: { on: false, income: 0, fixed: 0, saving: 0, fixedCats: ['e_rent'], start: '', settled: '', closedYM: '', jar: 0, log: {}, flag: null },
-    settings: { theme: 'millet', mode: 'auto', weekStart: 1, pin: '', lastAcc: '', bio: false, backup: {} }
+    saving: { plans: [] },
+    settings: { theme: 'millet', mode: 'auto', weekStart: 1, pin: '', lastAcc: '', bio: false, backup: {}, remind: { on: false, time: '21:00' } }
   });
 
   function normalize(s) {
@@ -121,6 +122,7 @@
     s = s && typeof s === 'object' ? s : {};
     const out = Object.assign({}, d, s);
     out.settings = Object.assign({}, d.settings, s.settings || {});
+    out.saving = s.saving && Array.isArray(s.saving.plans) ? s.saving : { plans: [] };
     out.smart = Object.assign({}, d.smart, s.smart && typeof s.smart === 'object' ? s.smart : {});
     if (!Array.isArray(out.smart.fixedCats)) out.smart.fixedCats = ['e_rent'];
     if (!out.smart.log || typeof out.smart.log !== 'object') out.smart.log = {};

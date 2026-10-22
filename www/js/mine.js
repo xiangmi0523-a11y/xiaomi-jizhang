@@ -22,6 +22,7 @@
     return `<div class="hero slim mine-hero"><div class="avatar">${App.catArt.svg('n1', { head: true, w: 48 })}</div><div><h2 class="hero-title">晓米记账</h2><div class="hero-sub">已记 ${days} 天 · 共 ${n} 笔</div></div></div>
       <div class="body">
         ${assetCard()}
+        ${App.savings.cardHTML()}
         <div class="card list menu">
           ${row('openSmart', '🧠', '智能预算', App.smart.on() ? (t => (t.left >= 0 ? '今天还能花 ¥' : '今天超出 ¥') + money(Math.abs(t.left)))(App.smart.today()) : '按收入算出每天能花多少')}
           ${row('openBudget', '🎯', '每月预算', App.smart.on() ? '已由智能预算接管' : bud)}
@@ -31,9 +32,10 @@
         <div class="card list menu">
           ${row('openLook', '🎨', '外观', (App.THEMES[S.settings.theme] || {}).n + ' · ' + ({ auto: '跟随系统', light: '浅色', dark: '深色' }[S.settings.mode]))}
           ${row('openSecurity', '🔒', '密码锁', S.settings.pin ? '已开启' : '未开启')}
+          ${row('openRemind', '⏰', '记账提醒', (App.S.settings.remind && App.S.settings.remind.on) ? '每天 ' + App.S.settings.remind.time + ' 没记账会提醒' : '未开启')}
           ${row('openData', '💾', '数据与备份', '导出、导入、清空')}
         </div>
-        <div class="card list menu">${row('openAbout', '🌾', '关于晓米记账', 'v1.8')}</div>
+        <div class="card list menu">${row('openAbout', '🌾', '关于晓米记账', 'v1.9')}</div>
       </div>`;
   };
   App.views.mine = { render: mineRender };
@@ -333,7 +335,7 @@
   A.openAbout = () => {
     UI.sheet({
       title: '关于', cls: 'compact',
-      render: () => `<div class="about"><div class="avatar big">${App.catArt.svg('n1', { head: true, w: 70, mood: 'happy' })}</div><h3>晓米记账</h3><p class="muted">v1.8 · 给自己用的小账本</p>
+      render: () => `<div class="about"><div class="avatar big">${App.catArt.svg('n1', { head: true, w: 70, mood: 'happy' })}</div><h3>晓米记账</h3><p class="muted">v1.9 · 给自己用的小账本</p>
         <p>所有数据只存在这台手机里，没有账号、没有联网、没有广告。</p>
         <p class="muted">记一笔 · 明细日历 · 统计图表 · 资产账户 · 预算 · 周期记账 · 备份导出</p></div>`
     });

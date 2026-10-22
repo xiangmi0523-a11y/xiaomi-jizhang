@@ -4,6 +4,7 @@ import SwiftUI
 import WidgetKit
 import LocalAuthentication
 import UniformTypeIdentifiers
+import UserNotifications
 
 final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigationDelegate, UIDocumentPickerDelegate {
     private var webView: WKWebView!
@@ -87,6 +88,41 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
     private func callJS(_ code: String) {
         DispatchQueue.main.async { [weak self] in
             self?.webView.evaluateJavaScript(code, completionHandler: nil)
+        }
+    }
+
+    // MARK: - 每晚记账提醒（本地通知，按天预排；当天记过账的那天由网页端去掉）
+
+    private static let remindPrefix = "xm-remind-"
+
+    private func clearReminders(then: (() -> Void)?) {
+        let center = UNUserNotificationCenter.current()
+        center.getPendingNotificationRequests { requests in
+            let ids = requests.map { $0.identifier }.filter { $0.hasPrefix(Self.remindPrefix) }
+            center.removePendingNotificationRequests(withIdentifiers: ids)
+            then?()
+        }
+    }
+
+    private func scheduleReminders(_ items: [[String: Any]]) {
+        clearReminders {
+            let center = UNUserNotificationCenter.current()
+            for item in items {
+                guard let id = item["id"] as? String, let date = item["date"] as? String else { continue }
+                let parts = date.split(separator: "-").compactMap { Int($0) }
+                guard parts.count == 3 else { continue }
+                var comps = DateComponents()
+                comps.year = parts[0]; comps.month = parts[1]; comps.day = parts[2]
+                comps.hour = (item["hour"] as? Int) ?? 21
+                comps.minute = (item["minute"] as? Int) ?? 0
+                let content = UNMutableNotificationContent()
+                content.title = (item["title"] as? String) ?? "晓米记账"
+                content.body = (item["body"] as? String) ?? "今天还没记账哦～"
+                content.sound = .default
+                content.userInfo = ["action": "add"]
+                let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: false)
+                center.add(UNNotificationRequest(identifier: id, content: content, trigger: trigger))
+            }
         }
     }
 
@@ -274,6 +310,22 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
             if let name = body["filename"] as? String, let content = body["content"] as? String {
                 autoBackup(filename: name, content: content)
             }
+        case "notifyAuth":
+            UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { [weak self] granted, _ in
+                self?.callJS("App.remind && App.remind.onPerm(\(granted))")
+            }
+        case "notifySchedule":
+            if let items = body["items"] as? [[String: Any]] { scheduleReminders(items) }
+        case "notifyClear":
+            clearReminders(then: nil)
+        case "notifyTest":
+            let content = UNMutableNotificationContent()
+            content.title = (body["title"] as? String) ?? "晓米记账"
+            content.body = (body["body"] as? String) ?? "测试通知"
+            content.sound = .default
+            content.userInfo = ["action": "add"]
+            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 5, repeats: false)
+            UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: "xm-test", content: content, trigger: trigger))
         case "snapshot":
             if let name = body["filename"] as? String, let content = body["content"] as? String {
                 saveSnapshot(filename: name, content: content)

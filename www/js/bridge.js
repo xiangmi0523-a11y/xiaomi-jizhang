@@ -9,7 +9,7 @@
   };
   App.sendWidget = sendWidget;
   const flush = App.flush;
-  App.flush = () => { flush(); sendWidget(); if (App.backup) App.backup.run(); };
+  App.flush = () => { flush(); sendWidget(); if (App.backup) App.backup.run(); if (App.remind) App.remind.sync(); };
 
   // 小组件按钮 / 快捷指令 / 敲击背面 → 原生层调用这里，直接弹出记账面板
   App.quickAdd = () => {
