@@ -34,6 +34,7 @@
   });
 
   /* ---------- 密码锁 ---------- */
+  App.bioName = () => ({ faceID: '面容 ID', touchID: '触控 ID', opticID: '视控 ID' }[window.__BIO__] || '面容 ID');
   const Lock = App.Lock = { active: false };
   Lock.ask = (title, o = {}) => new Promise(res => {
     const el = document.getElementById('lock');
@@ -49,14 +50,20 @@
         `<div class="dots" id="lkDots">${[0, 1, 2, 3].map(i => `<i class="${i < buf.length ? 'on' : ''}"></i>`).join('')}</div>` +
         `<div class="lk-pad">${keys.map(k => k === '' ? '<span></span>' : `<button data-lk="k" data-v="${k}">${k === 'del' ? '⌫' : k}</button>`).join('')}</div>` +
         (o.cancel ? '<button class="lk-link" data-lk="cancel">取消</button>' : '') +
+        (o.bio ? `<button class="lk-bio" data-lk="bio">${App.bioName()} 解锁</button>` : '') +
         (o.forgot ? '<button class="lk-link" data-lk="forgot">忘记密码？</button>' : '') + '</div>';
     };
-    const close = v => { el.hidden = true; el.innerHTML = ''; el.onclick = null; Lock.active = false; res(v); };
+    const close = v => { el.hidden = true; el.innerHTML = ''; el.onclick = null; Lock.active = false; Lock.onBio = null; res(v); };
     el.hidden = false; paint();
+    if (o.bio) {   // 面容 / 指纹：成功直接解锁，失败或取消就用密码
+      Lock.onBio = ok => { if (!Lock.active) return; if (ok) close('bio'); else paint('可以输入 4 位密码解锁'); };
+      setTimeout(() => { if (Lock.active) App.native('auth', {}); }, 350);
+    }
     el.onclick = e => {
       const b = e.target.closest('[data-lk]'); if (!b) return;
       const a = b.dataset.lk;
       if (a === 'cancel') { close(null); return; }
+      if (a === 'bio') { App.native('auth', {}); return; }
       if (a === 'forgot') { mode = 'forgot'; paint(); return; }
       if (a === 'back') { mode = 'pad'; buf = ''; paint(); return; }
       if (a === 'reset') { App.replaceState(null); close(''); UI.toast('已重置'); return; }
@@ -78,12 +85,12 @@
 
   App.lockNow = async () => {
     if (!App.S.settings.pin || Lock.active) return;
-    await Lock.ask('输入密码', { forgot: true, validate: v => U.hash('xm:' + v) === App.S.settings.pin, mismatch: '密码不对' });
+    await Lock.ask('输入密码', { forgot: true, bio: App.S.settings.bio && !!window.__BIO__, validate: v => U.hash('xm:' + v) === App.S.settings.pin, mismatch: '密码不对' });
   };
 
   /* ---------- 前后台 ---------- */
   App.onBackground = () => { App.flush(); App.lockNow(); };
-  App.onForeground = () => { App.runRecurring(); if (App.mood.decay()) App.flush(); App.smart.run(); App.render(true); App.budget.check(); };
+  App.onForeground = () => { App.runRecurring(); if (App.mood.decay()) App.flush(); App.smart.run(); App.render(true); App.budget.check(); App.backup.run(); };
   document.addEventListener('visibilitychange', () => { if (document.hidden) App.onBackground(); else App.onForeground(); });
   window.addEventListener('pagehide', () => App.flush());
 
@@ -111,6 +118,7 @@
     App.mood.decay(); App.flush();
     App.render(false);
     setTimeout(() => App.smart.run(), 500);
+    setTimeout(() => { App.backup.run(); App.backup.remind(); }, 2500);
     setTimeout(() => App.budget.check(), 800);
     if (App.loadError) UI.toast('数据文件读取失败，已用新账本启动，原数据已另存', 4200);
   };

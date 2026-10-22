@@ -2,8 +2,10 @@ import UIKit
 import WebKit
 import SwiftUI
 import WidgetKit
+import LocalAuthentication
+import UniformTypeIdentifiers
 
-final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigationDelegate {
+final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigationDelegate, UIDocumentPickerDelegate {
     private var webView: WKWebView!
     private var webBottom: NSLayoutConstraint!
     private var pageReady = false
@@ -65,10 +67,142 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
 
     /// 启动时把上次保存的账本文件交给网页（网页自己的 localStorage 丢失时用来恢复）
     private func bootstrapScript() -> String {
-        guard let data = try? Data(contentsOf: dataFileURL), !data.isEmpty else {
-            return "window.__NATIVE_APP__ = true;"
+        var js = "window.__NATIVE_APP__ = true; window.__BIO__ = \(jsString(biometryName()));"
+        if let folder = backupFolderURL() {
+            js += " window.__BACKUP_FOLDER__ = \(jsString(folder.lastPathComponent));"
         }
-        return "window.__NATIVE_APP__ = true; window.__NATIVE_B64__ = \"\(data.base64EncodedString())\";"
+        if let data = try? Data(contentsOf: dataFileURL), !data.isEmpty {
+            js += " window.__NATIVE_B64__ = \"\(data.base64EncodedString())\";"
+        }
+        return js
+    }
+
+    private func jsString(_ s: String) -> String {
+        let escaped = s.replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+            .replacingOccurrences(of: "\n", with: " ")
+        return "\"" + escaped + "\""
+    }
+
+    private func callJS(_ code: String) {
+        DispatchQueue.main.async { [weak self] in
+            self?.webView.evaluateJavaScript(code, completionHandler: nil)
+        }
+    }
+
+    // MARK: - 面容 ID / 触控 ID
+
+    private func biometryName() -> String {
+        let ctx = LAContext()
+        var err: NSError?
+        guard ctx.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &err) else { return "" }
+        switch ctx.biometryType {
+        case .faceID: return "faceID"
+        case .touchID: return "touchID"
+        default: return ""
+        }
+    }
+
+    private func authenticate() {
+        let ctx = LAContext()
+        ctx.localizedFallbackTitle = "输入密码"
+        var err: NSError?
+        guard ctx.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &err) else {
+            callJS("App.Lock && App.Lock.onBio && App.Lock.onBio(false)")
+            return
+        }
+        ctx.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: "解锁晓米记账") { [weak self] ok, _ in
+            self?.callJS("App.Lock && App.Lock.onBio && App.Lock.onBio(\(ok))")
+        }
+    }
+
+    // MARK: - 自动备份：用户选一次文件夹（可选 iCloud 云盘），之后凭书签持续写入
+
+    private static let bookmarkKey = "backupFolderBookmark"
+
+    private func backupFolderURL() -> URL? {
+        guard let data = UserDefaults.standard.data(forKey: Self.bookmarkKey) else { return nil }
+        var stale = false
+        guard let url = try? URL(resolvingBookmarkData: data, options: [], relativeTo: nil, bookmarkDataIsStale: &stale) else { return nil }
+        if stale, url.startAccessingSecurityScopedResource() {
+            if let fresh = try? url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil) {
+                UserDefaults.standard.set(fresh, forKey: Self.bookmarkKey)
+            }
+            url.stopAccessingSecurityScopedResource()
+        }
+        return url
+    }
+
+    private func pickBackupFolder() {
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [UTType.folder])
+        picker.delegate = self
+        picker.allowsMultipleSelection = false
+        present(picker, animated: true)
+    }
+
+    func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+        guard let url = urls.first else { return }
+        let ok = url.startAccessingSecurityScopedResource()
+        defer { if ok { url.stopAccessingSecurityScopedResource() } }
+        do {
+            let data = try url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil)
+            UserDefaults.standard.set(data, forKey: Self.bookmarkKey)
+            callJS("App.backup && App.backup.onFolder(\(jsString(url.lastPathComponent)))")
+        } catch {
+            callJS("App.backup && App.backup.onFolderFail(\(jsString(error.localizedDescription)))")
+        }
+    }
+
+    private func pruneBackups(in folder: URL, prefix: String, keep: Int, coordinated: Bool) {
+        let files = (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)) ?? []
+        let mine = files.filter { $0.lastPathComponent.hasPrefix(prefix) }
+            .sorted { $0.lastPathComponent > $1.lastPathComponent }
+        for old in mine.dropFirst(keep) {
+            if coordinated {
+                var err: NSError?
+                NSFileCoordinator().coordinate(writingItemAt: old, options: .forDeleting, error: &err) { u in
+                    try? FileManager.default.removeItem(at: u)
+                }
+            } else {
+                try? FileManager.default.removeItem(at: old)
+            }
+        }
+    }
+
+    private func autoBackup(filename: String, content: String) {
+        ioQueue.async { [weak self] in
+            guard let self = self else { return }
+            guard let folder = self.backupFolderURL() else {
+                self.callJS("App.backup && App.backup.onAuto(false, '', '还没有选择备份文件夹')")
+                return
+            }
+            let access = folder.startAccessingSecurityScopedResource()
+            defer { if access { folder.stopAccessingSecurityScopedResource() } }
+            let target = folder.appendingPathComponent(filename)
+            var coordErr: NSError?
+            var writeErr: Error?
+            NSFileCoordinator().coordinate(writingItemAt: target, options: .forReplacing, error: &coordErr) { url in
+                do { try Data(content.utf8).write(to: url, options: .atomic) } catch { writeErr = error }
+            }
+            let failure: Error? = writeErr ?? (coordErr as Error?)
+            if failure == nil {
+                self.pruneBackups(in: folder, prefix: "晓米记账自动备份-", keep: 10, coordinated: true)
+            }
+            let msg = failure.map { self.jsString($0.localizedDescription) } ?? "''"
+            self.callJS("App.backup && App.backup.onAuto(\(failure == nil), \(self.jsString(folder.lastPathComponent)), \(msg))")
+        }
+    }
+
+    /// App 内的本地快照（「文件」App → 我的 iPhone → 晓米记账 → 自动备份），保留最近 7 份
+    private func saveSnapshot(filename: String, content: String) {
+        ioQueue.async { [weak self] in
+            guard let self = self else { return }
+            let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+                .appendingPathComponent("自动备份", isDirectory: true)
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            try? Data(content.utf8).write(to: dir.appendingPathComponent(filename), options: .atomic)
+            self.pruneBackups(in: dir, prefix: "晓米记账自动备份-", keep: 7, coordinated: false)
+        }
     }
 
     // MARK: - 键盘：弹出时整个页面缩到键盘上方，输入框（比如记账备注）始终看得见
@@ -132,6 +266,18 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
             if let text = body["data"] as? String { updateWidget(text) }
         case "chart":
             if let text = body["data"] as? String { presentChart(text) }
+        case "auth":
+            authenticate()
+        case "pickBackupFolder":
+            pickBackupFolder()
+        case "autoBackup":
+            if let name = body["filename"] as? String, let content = body["content"] as? String {
+                autoBackup(filename: name, content: content)
+            }
+        case "snapshot":
+            if let name = body["filename"] as? String, let content = body["content"] as? String {
+                saveSnapshot(filename: name, content: content)
+            }
         default:
             break
         }

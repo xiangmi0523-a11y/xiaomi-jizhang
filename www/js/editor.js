@@ -92,11 +92,12 @@
         to: E.type === 'transfer' ? E.to : '', date: E.date, note: noteEl.value.trim()
       };
       S.settings.lastAcc = E.acc;
-      if (E.id) App.updateRecord(E.id, data); else App.addRecord(data);
+      const added = E.id ? null : App.addRecord(data);
+      if (E.id) App.updateRecord(E.id, data);
       const from = doneEl.getBoundingClientRect();
       h.close();
       if (E.id) UI.toast('已修改');
-      else App.game.rewardRecord({ x: from.left + from.width / 2, y: from.top + from.height / 2 });
+      else App.game.rewardRecord({ x: from.left + from.width / 2, y: from.top + from.height / 2 }, added);
       setTimeout(() => App.budget.check(), 1100);   // 支出快超预算时猫咪会出来提醒
     };
 
@@ -172,7 +173,7 @@
           else if (a === 'manage') App.openCatManager(E.type, () => { if (E.cat && !S.cats[E.type].some(c => c.id === E.cat)) E.cat = ''; paintCats(); });
           else if (a === 'del') {
             UI.confirm({ title: '删除这笔记录？', msg: '删除后无法恢复', ok: '删除', danger: true }).then(ok => {
-              if (ok) { App.deleteRecord(E.id); h.close(); UI.toast('已删除'); App.budget.check(); }
+              if (ok) { App.deleteRecord(E.id); h.close(); UI.toast(App.game.refunded ? `已删除，收回 ${App.game.refunded} 金币` : '已删除'); App.budget.check(); }
             });
           }
         });

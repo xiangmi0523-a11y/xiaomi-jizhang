@@ -70,11 +70,30 @@
   };
 
   // 保存一笔新账单后调用
-  G.rewardRecord = pos => {
+  G.DAILY_CAP = 20;   // 每天最多奖励 20 笔，防止刷金币
+  G.rewardRecord = (pos, rec) => {
+    const today = U.today();
+    const n = App.S.records.filter(r => r.rw && U.ymd(new Date(r.ts || 0)) === today).length;
+    if (n >= G.DAILY_CAP) { UI.toast('记账成功（今天的记账金币已经领满啦）', 2000); return; }
+    if (rec) rec.rw = 1;
     st().progress += 1;      // 记账次数进度（阶段二抽盲盒会用到）
     if (App.mood) App.mood.onRecord();   // 记账让所有猫咪开心一点
     UI.toast('记账成功，获得 ' + REWARD_RECORD + ' 金币', 2000, 'gold');
     G.add(REWARD_RECORD, pos);
+  };
+
+  // 删掉一笔领过奖励的账单：收回金币和盲盒进度，删了再记就刷不了了
+  const rawDelete = App.deleteRecord;
+  App.deleteRecord = id => {
+    const r = App.S.records.find(x => x.id === id);
+    G.refunded = 0;
+    if (r && r.rw) {
+      st().coins = Math.max(0, st().coins - REWARD_RECORD);
+      st().progress = Math.max(0, st().progress - 1);
+      G.shown = null;
+      G.refunded = REWARD_RECORD;
+    }
+    rawDelete(id);
   };
 
   /* ---------- 签到数据 ---------- */

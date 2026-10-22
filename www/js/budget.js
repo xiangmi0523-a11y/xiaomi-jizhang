@@ -111,8 +111,35 @@
     };
   };
 
+  // 分类预算：某个分类到 80% / 超支时各提醒一次（每月）
+  B.catUsed = ym => {
+    const used = {};
+    App.recordsByMonth(ym).forEach(r => { if (r.type === 'expense') used[r.cat] = (used[r.cat] || 0) + r.amount; });
+    return used;
+  };
+  B.checkCats = () => {
+    const cats = App.S.budget.cats || {}, ids = Object.keys(cats).filter(k => cats[k] > 0);
+    if (!ids.length) return;
+    const ym = U.curYM(), used = B.catUsed(ym), g = App.S.game;
+    if (!g.catWarn || g.catWarn.ym !== ym) g.catWarn = { ym, lv: {} };
+    let msg = '', worst = 0, changed = false;
+    ids.forEach(id => {
+      const spent = used[id] || 0, lv = B.level(spent, cats[id]), prev = g.catWarn.lv[id] || 0;
+      if (lv !== prev) { g.catWarn.lv[id] = lv; changed = true; }
+      if (lv > prev && lv >= worst) {
+        worst = lv;
+        const c = App.cat(id);
+        msg = lv === 2 ? `「${c.name}」本月预算超支啦！已花 ¥${money(spent)} / ¥${money(cats[id])}`
+          : `「${c.name}」本月预算已用 ${Math.round(spent / cats[id] * 100)}%，省着点花喵`;
+      }
+    });
+    if (changed) App.flush();
+    if (msg) { if (worst === 2 && App.smart) App.smart.nudge(msg); else App.UI.toast(msg, 2800); }
+  };
+
   B.check = () => {
     if (App.smart) App.smart.check();
+    B.checkCats();
     const cur = B.current(), total = cur.total;
     const ym = U.curYM();
     const w = App.S.game.warn || {};

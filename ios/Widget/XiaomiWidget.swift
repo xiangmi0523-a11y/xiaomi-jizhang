@@ -19,7 +19,10 @@ struct XMProvider: TimelineProvider {
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<XMEntry>) -> Void) {
         let entry = XMEntry(date: Date(), data: XMWidgetData.load())
-        let next = Calendar.current.date(byAdding: .minute, value: 30, to: Date()) ?? Date().addingTimeInterval(1800)
+        let cal = Calendar.current
+        let halfHour = cal.date(byAdding: .minute, value: 30, to: Date()) ?? Date().addingTimeInterval(1800)
+        let midnight = cal.startOfDay(for: cal.date(byAdding: .day, value: 1, to: Date()) ?? Date())
+        let next = min(halfHour, midnight.addingTimeInterval(5))
         completion(Timeline(entries: [entry], policy: .after(next)))
     }
 }
@@ -43,6 +46,29 @@ struct XMWidgetView: View {
         case 1: return Color(red: 0.95, green: 0.58, blue: 0.0)
         default: return Color(red: 0.20, green: 0.70, blue: 0.42)
         }
+    }
+
+    static let tips = [
+        "今天的每一笔，都是在给未来的自己存钱喵～",
+        "奶茶少喝一杯，猫粮多买一包！",
+        "记完账再睡觉，猫咪才不会饿肚子",
+        "买之前问问自己：真的需要吗？",
+        "小钱也是钱，记下来就知道花去哪了",
+        "坚持记账 21 天，就会变成好习惯",
+        "月底存下的钱，会自动跑进储蓄罐哦",
+        "今天也是认真生活的一天，记一笔吧"
+    ]
+
+    static func tip(_ d: Date) -> String {
+        let day = Calendar.current.ordinality(of: .day, in: .year, for: d) ?? 0
+        return tips[day % tips.count]
+    }
+
+    static func dateText(_ d: Date) -> String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "zh_CN")
+        f.dateFormat = "M月d日 EEEE"
+        return f.string(from: d)
     }
 
     private var catImage: String {
@@ -104,10 +130,13 @@ struct XMWidgetView: View {
                             .font(.system(size: 11)).foregroundColor(ink.opacity(0.7))
                     }
                 } else {
-                    Text("晓米记账")
-                        .font(.system(size: 17, weight: .heavy)).foregroundColor(ink)
-                    Text("打开 App 同步一下数据～")
-                        .font(.system(size: 11)).foregroundColor(ink.opacity(0.7))
+                    // 签名证书不支持 App Group 时读不到账本数据，就显示日期和每日小贴士
+                    Text(Self.dateText(entry.date))
+                        .font(.system(size: 18, weight: .heavy, design: .rounded)).foregroundColor(ink)
+                        .lineLimit(1).minimumScaleFactor(0.7)
+                    Text(Self.tip(entry.date))
+                        .font(.system(size: 12, weight: .semibold)).foregroundColor(ink.opacity(0.75))
+                        .lineLimit(2).fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 0)
                 Link(destination: URL(string: "\(XMShared.urlScheme)://add")!) {

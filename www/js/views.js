@@ -212,6 +212,14 @@
     return `<svg class="donut" viewBox="0 0 120 120">${segs}${rings}<text x="60" y="55" class="dl">总${unit}</text><text x="60" y="71" class="dv">${U.cell(d.total)}</text></svg>`;
   };
 
+  // 分类预算进度（只在看「月 · 支出」时显示）
+  const catBud = c => {
+    const b = App.S.budget.cats[c.id];
+    if (!b || T.type !== 'expense' || T.scope !== 'month') return '';
+    const lv = App.budget.level(c.sum, b), pct = Math.round(c.sum / b * 100);
+    return `<div class="rank-bud lv${lv}"><span>预算 ¥${money(b)} · 已用 ${pct}%</span><span>${c.sum > b ? '超支 ¥' + money(c.sum - b) : '还剩 ¥' + money(b - c.sum)}</span></div><div class="bd-bar slim ${App.budget.COLORS[lv]}"><i style="width:${Math.min(100, pct)}%"></i></div>`;
+  };
+
   const statsRender = () => {
     const d = statsData();
     const unit = T.type === 'expense' ? '支出' : '收入';
@@ -236,7 +244,7 @@
         const cat = App.cat(c.id);
         return `<div class="rank" data-act="statCat" data-id="${esc(c.id)}"><div class="ico">${cat.icon}</div><div class="rank-main">` +
           `<div class="rank-row"><span>${esc(cat.name)} <em>${(c.sum / d.total * 100).toFixed(1)}%</em></span><b>${money(c.sum)}</b></div>` +
-          `<div class="bar thin"><i style="width:${Math.max(3, Math.round(c.sum / top * 100))}%;background:${PALETTE[i] || '#C9C2B4'}"></i></div></div></div>`;
+          `<div class="bar thin"><i style="width:${Math.max(3, Math.round(c.sum / top * 100))}%;background:${PALETTE[i] || '#C9C2B4'}"></i></div>${catBud(c)}</div></div>`;
       }).join('');
     }
     const nativeBtn = window.__NATIVE_APP__ && d.cats.length ? '<button class="mini-btn" data-act="nativeChart">✨ 立体饼图</button>' : '';

@@ -113,7 +113,7 @@
     recurring: [],
     game: { coins: 100, signed: [], progress: 0, cats: {}, inn: { slots: {}, owned: [] }, themes: [] },
     smart: { on: false, income: 0, fixed: 0, saving: 0, fixedCats: ['e_rent'], start: '', settled: '', closedYM: '', jar: 0, log: {}, flag: null },
-    settings: { theme: 'millet', mode: 'auto', weekStart: 1, pin: '', lastAcc: '' }
+    settings: { theme: 'millet', mode: 'auto', weekStart: 1, pin: '', lastAcc: '', bio: false, backup: {} }
   });
 
   function normalize(s) {

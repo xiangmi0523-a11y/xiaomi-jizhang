@@ -33,7 +33,7 @@
           ${row('openSecurity', '🔒', '密码锁', S.settings.pin ? '已开启' : '未开启')}
           ${row('openData', '💾', '数据与备份', '导出、导入、清空')}
         </div>
-        <div class="card list menu">${row('openAbout', '🌾', '关于晓米记账', 'v1.7')}</div>
+        <div class="card list menu">${row('openAbout', '🌾', '关于晓米记账', 'v1.8')}</div>
       </div>`;
   };
   App.views.mine = { render: mineRender };
@@ -53,7 +53,7 @@
           ${App.smart.on() ? '<p class="hint sb-note">已开启智能预算：首页卡片和超支提醒按智能预算的弹性额度计算。这里的总预算在关闭智能预算后才生效。</p>' : ''}
           <div class="card-title pad-t">分类预算（可选）</div>
           <div class="card list">${S.cats.expense.filter(c => !c.hidden).map(c =>
-            `<label class="rec"><div class="ico">${c.icon}</div><div class="rec-main"><div class="rec-title">${esc(c.name)}</div><div class="rec-sub">本月已花 ${money(used[c.id] || 0)}</div></div>` +
+            `<label class="rec"><div class="ico">${c.icon}</div><div class="rec-main"><div class="rec-title">${esc(c.name)}</div><div class="rec-sub">本月已花 ${money(used[c.id] || 0)}${S.budget.cats[c.id] ? ` · 已用 ${Math.round((used[c.id] || 0) / S.budget.cats[c.id] * 100)}%` : ''}</div></div>` +
             `<input class="mini-input" data-bc="${esc(c.id)}" type="text" inputmode="decimal" placeholder="不限" value="${S.budget.cats[c.id] ? U.centsToStr(S.budget.cats[c.id]) : ''}"></label>`).join('')}</div>
           <button class="btn primary wide" data-bd="save">保存预算</button>
         </div>`;
@@ -266,7 +266,7 @@
     UI.sheet({
       title: '密码锁', cls: 'compact', autoRefresh: true,
       render: () => S.settings.pin
-        ? `<div class="menu">${row('secChange', '🔑', '修改密码')}${row('secOff', '🔓', '关闭密码锁')}</div><p class="hint pad">离开 App 再回来时需要输入 4 位密码。这是一个简易的隐私锁，防止别人随手翻看。</p>`
+        ? `<div class="menu">${window.__BIO__ ? `<button class="menu-row" data-act="secBio"><span class="mi">🙂</span><span class="mt">用${App.bioName()}解锁<small>${S.settings.bio ? '已开启，失败时可以输入密码' : '打开后不用每次输密码'}</small></span><span class="switch${S.settings.bio ? ' on' : ''}"><i></i></span></button>` : ''}${row('secChange', '🔑', '修改密码')}${row('secOff', '🔓', '关闭密码锁')}</div><p class="hint pad">离开 App 再回来时需要解锁。这是一个简易的隐私锁，防止别人随手翻看。</p>`
         : `<div class="menu">${row('secOn', '🔒', '开启 4 位密码锁')}</div><p class="hint pad">开启后，每次打开或切回晓米记账都需要输入密码。忘记密码时只能清空数据重置，建议先做个备份。</p>`
     });
   };
@@ -279,25 +279,31 @@
     App.changed(); return true;
   };
   const verifyPin = title => App.Lock.ask(title, { cancel: true, validate: v => U.hash('xm:' + v) === App.S.settings.pin, mismatch: '密码不对' });
-  A.secOn = async () => { if (await setNewPin()) UI.toast('密码锁已开启'); };
+  A.secOn = async () => {
+    if (!await setNewPin()) return;
+    if (window.__BIO__) { App.S.settings.bio = true; App.changed(); UI.toast(`密码锁已开启，也可以用${App.bioName()}解锁`, 2400); } else UI.toast('密码锁已开启');
+  };
+  A.secBio = () => { App.S.settings.bio = !App.S.settings.bio; App.changed(); UI.toast(App.S.settings.bio ? `已开启${App.bioName()}解锁` : `已关闭${App.bioName()}解锁`); };
   A.secChange = async () => { if (await verifyPin('输入当前密码') == null) return; if (await setNewPin()) UI.toast('密码已修改'); };
   A.secOff = async () => {
     if (await verifyPin('输入当前密码') == null) return;
-    App.S.settings.pin = ''; App.changed(); UI.toast('密码锁已关闭');
+    App.S.settings.pin = ''; App.S.settings.bio = false; App.changed(); UI.toast('密码锁已关闭');
   };
 
   /* ================= 数据与备份 ================= */
   const stamp = () => U.today();
   A.openData = () => {
     UI.sheet({
-      title: '数据与备份', cls: 'compact',
+      title: '数据与备份', cls: 'compact', autoRefresh: true,
       render: () => `<div class="menu">
+        ${row('backupPick', '☁️', App.backup.folder() ? '自动备份（已开启）' : '自动备份到 iCloud 云盘', App.backup.status())}
+        ${App.backup.folder() ? row('backupNow', '🔄', '立即备份一次', '点上一行可以换一个文件夹') : ''}
         ${row('dataExport', '📤', '导出备份（JSON）', '换手机、重装、更新前先做一份')}
         <label class="menu-row" for="importFile"><span class="mi">📥</span><span class="mt">导入备份<small>用备份文件覆盖当前数据</small></span><span class="mr">${UI.icons.chev}</span></label>
         ${row('dataCsv', '📊', '导出表格（CSV）', '可以用 Excel / WPS 打开')}
         ${row('dataClear', '🗑️', '清空所有数据', '会先让你确认')}
       </div><input id="importFile" type="file" accept=".json,application/json,text/plain" hidden>
-      <p class="hint pad">数据只保存在这台手机里，不会上传到任何地方。重新签名安装时请保持包名不变，否则数据会丢，所以更新前请先导出备份。</p>`,
+      <p class="hint pad">账本平时只保存在这台手机里。开启自动备份后，每次有改动（最多每 2 小时一次）都会在你选的文件夹里存一份，保留最近 10 天；选 iCloud 云盘的话，删 App、换手机都能找回。恢复时用「导入备份」选那份文件就行。</p>`,
       onMount: h => {
         h.body.querySelector('#importFile').addEventListener('change', e => {
           const f = e.target.files && e.target.files[0]; if (!f) return;
@@ -316,7 +322,7 @@
       }
     });
   };
-  A.dataExport = () => { App.shareFile('晓米记账备份-' + stamp() + '.json', JSON.stringify(App.S), 'application/json'); };
+  A.dataExport = () => { App.backup.markExport(); App.shareFile('晓米记账备份-' + stamp() + '.json', JSON.stringify(App.S), 'application/json'); };
   A.dataCsv = () => { App.shareFile('晓米记账-' + stamp() + '.csv', App.csv(), 'text/csv'); };
   A.dataClear = async () => {
     if (!await UI.confirm({ title: '清空所有数据？', msg: '所有记录、账户、预算都会被删除，无法恢复。', ok: '继续', danger: true })) return;
@@ -327,7 +333,7 @@
   A.openAbout = () => {
     UI.sheet({
       title: '关于', cls: 'compact',
-      render: () => `<div class="about"><div class="avatar big">${App.catArt.svg('n1', { head: true, w: 70, mood: 'happy' })}</div><h3>晓米记账</h3><p class="muted">v1.7 · 给自己用的小账本</p>
+      render: () => `<div class="about"><div class="avatar big">${App.catArt.svg('n1', { head: true, w: 70, mood: 'happy' })}</div><h3>晓米记账</h3><p class="muted">v1.8 · 给自己用的小账本</p>
         <p>所有数据只存在这台手机里，没有账号、没有联网、没有广告。</p>
         <p class="muted">记一笔 · 明细日历 · 统计图表 · 资产账户 · 预算 · 周期记账 · 备份导出</p></div>`
     });

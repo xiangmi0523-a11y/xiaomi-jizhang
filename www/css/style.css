@@ -913,3 +913,11 @@ b.r, .r { color: var(--danger); }
 .inn-cat.sad .xc .xc-body { animation: xcBreathSleep 4s ease-in-out infinite; }
 .inn-cat.sad .xc svg { filter: saturate(.75); }
 .wn.good .wn-card { background: #FFF8E1; }
+
+/* 分类预算进度 */
+.rank-bud { display: flex; justify-content: space-between; margin-top: 6px; font-size: 11.5px; color: var(--sub); font-variant-numeric: tabular-nums; }
+.rank-bud.lv1 { color: #B86F00; }
+.rank-bud.lv2 { color: var(--danger); font-weight: 700; }
+.bd-bar.slim { height: 8px; margin-top: 3px; border-width: 1.5px; }
+/* Face ID 按钮 */
+.lk-bio { display: block; margin: 16px auto 0; padding: 10px 22px; border-radius: 22px; background: var(--accent); color: var(--accent-ink); font-weight: 800; font-size: 15px; }
