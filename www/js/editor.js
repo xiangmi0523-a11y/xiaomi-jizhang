@@ -129,7 +129,7 @@
         </div>
         <div class="ed-cats" id="edCats"></div>
         <div class="ed-panel">
-          <div class="ed-note"><input id="edNote" type="text" maxlength="40" enterkeyhint="done" placeholder="添加备注…" value="${esc(E.note)}"><span class="ed-chips" id="edChips"></span></div>
+          <div class="ed-note"><label class="note-box" for="edNote"><span class="note-ic">✏️</span><input id="edNote" type="text" maxlength="40" enterkeyhint="done" autocomplete="off" placeholder="点这里写备注，比如买了什么…" value="${esc(E.note)}"></label><button class="note-done" data-ed="noteDone">完成</button><span class="ed-chips" id="edChips"></span></div>
           <div class="ed-amt"><span class="cur">¥</span><span class="expr" id="edExpr">0</span><span class="prev" id="edPrev"></span></div>
           <div class="keypad">${keys}</div>
         </div>
@@ -150,6 +150,7 @@
         noteEl.addEventListener('keydown', e => { if (e.key === 'Enter') noteEl.blur(); });
 
         el.addEventListener('click', e => {
+          if (e.target.closest('.note-box')) { if (document.activeElement !== noteEl) noteEl.focus(); return; }
           if (document.activeElement === noteEl && e.target !== noteEl) noteEl.blur();
           const kb = e.target.closest('[data-k]');
           if (kb) { press(kb.dataset.k); return; }
@@ -166,6 +167,7 @@
           } else if (a === 'pickAcc') pickAccount('选择账户', E.acc, v => { E.acc = v; paintChips(); });
           else if (a === 'pickFrom') pickAccount('转出账户', E.acc, v => { E.acc = v; paintCats(); });
           else if (a === 'pickTo') pickAccount('转入账户', E.to, v => { E.to = v; paintCats(); });
+          else if (a === 'noteDone') noteEl.blur();
           else if (a === 'swap') { const t = E.acc; E.acc = E.to; E.to = t; paintCats(); }
           else if (a === 'manage') App.openCatManager(E.type, () => { if (E.cat && !S.cats[E.type].some(c => c.id === E.cat)) E.cat = ''; paintCats(); });
           else if (a === 'del') {

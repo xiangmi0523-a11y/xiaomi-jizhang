@@ -5,6 +5,7 @@ import WidgetKit
 
 final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigationDelegate {
     private var webView: WKWebView!
+    private var webBottom: NSLayoutConstraint!
     private var pageReady = false
     private let ioQueue = DispatchQueue(label: "xiaomi.io", qos: .utility)
 
@@ -41,9 +42,10 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
         web.scrollView.bounces = false
         web.scrollView.contentInsetAdjustmentBehavior = .never
         view.addSubview(web)
+        webBottom = web.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         NSLayoutConstraint.activate([
             web.topAnchor.constraint(equalTo: view.topAnchor),
-            web.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            webBottom,
             web.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             web.trailingAnchor.constraint(equalTo: view.trailingAnchor)
         ])
@@ -51,6 +53,10 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
 
         NotificationCenter.default.addObserver(self, selector: #selector(handleQuickAdd),
                                                name: .xmQuickAdd, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillChange(_:)),
+                                               name: UIResponder.keyboardWillChangeFrameNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillHide(_:)),
+                                               name: UIResponder.keyboardWillHideNotification, object: nil)
 
         if let url = URL(string: "\(LocalSchemeHandler.scheme)://app/index.html") {
             web.load(URLRequest(url: url))
@@ -63,6 +69,29 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
             return "window.__NATIVE_APP__ = true;"
         }
         return "window.__NATIVE_APP__ = true; window.__NATIVE_B64__ = \"\(data.base64EncodedString())\";"
+    }
+
+    // MARK: - 键盘：弹出时整个页面缩到键盘上方，输入框（比如记账备注）始终看得见
+
+    @objc private func keyboardWillChange(_ note: Notification) {
+        guard let end = (note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue else { return }
+        let local = view.convert(end, from: nil)
+        applyKeyboard(height: max(0, view.bounds.maxY - local.minY), note: note)
+    }
+
+    @objc private func keyboardWillHide(_ note: Notification) {
+        applyKeyboard(height: 0, note: note)
+    }
+
+    private func applyKeyboard(height: CGFloat, note: Notification) {
+        guard webBottom.constant != -height else { return }
+        webBottom.constant = -height
+        let duration = (note.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double) ?? 0.25
+        UIView.animate(withDuration: duration, animations: { self.view.layoutIfNeeded() }, completion: { _ in
+            // 页面本身是固定布局，不需要系统帮忙滚动；滚偏了就复位，避免收起键盘后页面错位
+            self.webView.scrollView.setContentOffset(.zero, animated: false)
+        })
+        webView.evaluateJavaScript("document.documentElement.classList.toggle('kb-open', \(height > 0))", completionHandler: nil)
     }
 
     // MARK: - 快速记一笔（小组件 / 快捷指令）
