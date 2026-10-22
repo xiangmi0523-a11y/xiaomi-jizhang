@@ -166,7 +166,7 @@
     const t = U.today();
     if (t === lastDay) return;
     lastDay = t;
-    if (App.S) { if (App.mood) App.mood.decay(); App.changed(); paint(); }
+    if (App.S) { if (App.mood) App.mood.decay(); if (App.smart) App.smart.run(); App.changed(); paint(); }
   };
   setInterval(checkNewDay, 15000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) checkNewDay(); });

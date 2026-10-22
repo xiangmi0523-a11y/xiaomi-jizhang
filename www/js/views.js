@@ -241,7 +241,8 @@
     }
     const nativeBtn = window.__NATIVE_APP__ && d.cats.length ? '<button class="mini-btn" data-act="nativeChart">✨ 立体饼图</button>' : '';
     const cats = `<div class="card pad"><div class="card-title row">分类占比${nativeBtn}</div>${d.cats.length ? `<div class="donut-wrap">${donut(d)}</div>` : ''}${rank}</div>`;
-    return hero + `<div class="body">${types}${tiles}${trend}${cats}</div>`;
+    const ring = T.scope === 'month' && T.ym === U.curYM() ? App.smart.ringHTML() : '';
+    return hero + `<div class="body">${ring}${types}${tiles}${trend}${cats}</div>`;
   };
 
   // 打开 Swift Charts 原生饼图（马卡龙色）

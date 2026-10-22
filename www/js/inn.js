@@ -83,7 +83,10 @@
     return I.pos;
   };
 
-  const catSVG = (c, p, sleep) => App.catArt.svg(c.id, { w: c.r === 'SR' ? 86 : 76, cls: !sleep && p && p.flip ? 'flip' : '', sleep });
+  const catSVG = (c, p, sleep) => {
+    const sad = !sleep && App.smart && App.smart.stressed();   // 严重超支：猫咪饿得没精神
+    return App.catArt.svg(c.id, { w: c.r === 'SR' ? 86 : 76, cls: (!sleep && p && p.flip ? 'flip' : '') + (sad ? ' sad' : ''), sleep, mood: sad ? 'worried' : undefined });
+  };
 
   /* ---------- 底部操作条：选中的猫咪 + 喂罐头 ---------- */
   const actHTML = () => {
@@ -101,7 +104,8 @@
     const catsHTML = pos.map(p => {
       const c = App.cats.byId(p.id);
       const sleep = App.mood.isSleeping(c.id);
-      return `<div class="inn-cat r-${c.r}${sleep ? ' sleeping' : ''}${I.sel === c.id ? ' sel' : ''}" role="button" data-act="innCat" data-id="${c.id}" style="${placeStyle(p.x, p.y, 'b')}">${catSVG(c, p, sleep)}<span class="say"></span></div>`;
+      const sad = !sleep && App.smart && App.smart.stressed();
+      return `<div class="inn-cat r-${c.r}${sleep ? ' sleeping' : ''}${sad ? ' sad' : ''}${I.sel === c.id ? ' sel' : ''}" role="button" data-act="innCat" data-id="${c.id}" style="${placeStyle(p.x, p.y, 'b')}">${catSVG(c, p, sleep)}<span class="say"></span></div>`;
     }).join('');
     const empty = cats.length ? '' : '<div class="inn-nocat">还没有猫咪入住～<br>去「明细」开个盲盒吧 🎁</div>';
     return `<div class="inn-scene">
@@ -125,7 +129,7 @@
       </div></div>`;
     if (I.sub === 'dex') return head + `<div class="body">${App.cats.dexBodyHTML()}</div>`;
     if (I.sub === 'theme') return head + `<div class="body">${App.themes.storeHTML()}</div>`;
-    return head + `<div class="body">${sceneHTML()}${actHTML()}
+    return head + `<div class="body">${App.smart.ringHTML()}${sceneHTML()}${actHTML()}
       <div class="inn-info"><span>🛋️ 家具 ${placed}/${I.SLOTS.length}</span><span>🐾 入住猫咪 ${Math.min(n, SPOTS.length)} 只</span></div>
       <p class="muted center pad">点空位去商店买家具，点已摆的家具可以更换<br>点一下猫咪听它说话，还能喂罐头；连续 3 天不记账，猫咪会饿得睡着</p></div>`;
   };
@@ -133,7 +137,7 @@
 
   // 每次切到客栈 Tab 时重新随机猫咪站位
   document.addEventListener('click', e => {
-    if (e.target.closest && e.target.closest('[data-act="tab"][data-t="inn"]')) I.shuffle = true;
+    if (e.target.closest && e.target.closest('[data-act="tab"][data-t="inn"]')) { I.shuffle = true; setTimeout(() => I.sadNudge && I.sadNudge(), 900); }
   }, true);
 
   A.innSub = el => { I.sub = el.dataset.v; App.render(false); };
@@ -154,7 +158,7 @@
     const now = Date.now(), W = sc.clientWidth, H = sc.clientHeight;
     sc.querySelectorAll('.inn-cat').forEach(el => {
       const p = posOf(el.dataset.id);
-      if (!p || el.classList.contains('moving') || el.classList.contains('talk') || el.classList.contains('sleeping')) return;
+      if (!p || el.classList.contains('moving') || el.classList.contains('talk') || el.classList.contains('sleeping') || el.classList.contains('sad')) return;
       if (!p.next) { p.next = now + 800 + Math.random() * 4000; return; }
       if (now < p.next) return;
       const tx = FLOOR.x0 + Math.random() * (FLOOR.x1 - FLOOR.x0), ty = FLOOR.y0 + Math.random() * (FLOOR.y1 - FLOOR.y0);
@@ -178,8 +182,10 @@
   /* ---------- 点猫咪：停下、跳一下、笑眯眯、冒台词；睡着的猫只会翻个身喊饿 ---------- */
   const sayTimers = new WeakMap();
   I.LOW_LINES = ['有点无聊…想吃罐头了', '肚子咕咕叫了喵…', '今天还没记账吗？'];
+  I.SAD_LINES = ['喵呜，客栈要破产啦，今天少花点钱吧！', '肚子好饿…可是没钱买罐头了', '呜呜，今天花太多啦', '铲屎官，钱包要哭了喵…'];
   I.lineFor = id => {
     const v = id ? App.mood.get(id) : 70;
+    if (App.smart && App.smart.stressed()) return I.SAD_LINES[Math.floor(Math.random() * I.SAD_LINES.length)];
     const pool = v < 60 ? I.LINES.concat(I.LOW_LINES, I.LOW_LINES) : I.LINES;
     return pool[Math.floor(Math.random() * pool.length)];
   };
@@ -207,6 +213,13 @@
     I.sel = id;
     document.querySelectorAll('.inn-cat').forEach(x => x.classList.toggle('sel', x.dataset.id === id));
     refreshAct();
+  };
+
+  // 严重超支时，进入客栈自动有只猫来提醒
+  I.sadNudge = () => {
+    if (App.tab !== 'inn' || I.sub !== 'scene' || !App.smart || !App.smart.stressed()) return;
+    const el = document.querySelector('.inn-cat.sad');
+    if (el) talk(el, I.SAD_LINES[0]);
   };
 
   A.innCat = el => {

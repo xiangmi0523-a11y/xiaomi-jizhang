@@ -23,6 +23,8 @@ struct XMWidgetData: Codable {
     var coins: Int
     var monthLabel: String
     var updated: Double
+    var smart: Bool? = nil
+    var today: Double? = nil
 
     static func load() -> XMWidgetData? {
         guard let data = XMShared.defaults?.data(forKey: XMShared.widgetKey) else { return nil }

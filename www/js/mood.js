@@ -54,6 +54,7 @@
     return changed;
   };
 
+  M.bump = n => { owned().forEach(id => set(id, M.get(id) + n)); };
   M.onRecord = () => { owned().forEach(id => set(id, M.get(id) + M.RECORD_BONUS)); };
 
   // 喂食：返回 'ok' | 'full' | 'poor' | 'none'

@@ -91,6 +91,12 @@ struct XMWidgetView: View {
                             .overlay(Capsule().stroke(ink, lineWidth: 1.5))
                         }
                         .frame(height: 10)
+                        if let t = d.today {
+                            Text(t >= 0 ? "今天还能花 \(yuan(t))" : "今天超出 \(yuan(t))")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(t >= 0 ? ink.opacity(0.75) : Color(red: 0.85, green: 0.2, blue: 0.27))
+                                .lineLimit(1)
+                        }
                     } else {
                         Text("还没设置每月预算")
                             .font(.system(size: 15, weight: .heavy)).foregroundColor(ink)

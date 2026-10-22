@@ -112,6 +112,7 @@
     budget: { total: 0, cats: {} },
     recurring: [],
     game: { coins: 100, signed: [], progress: 0, cats: {}, inn: { slots: {}, owned: [] }, themes: [] },
+    smart: { on: false, income: 0, fixed: 0, saving: 0, fixedCats: ['e_rent'], start: '', settled: '', closedYM: '', jar: 0, log: {}, flag: null },
     settings: { theme: 'millet', mode: 'auto', weekStart: 1, pin: '', lastAcc: '' }
   });
 
@@ -120,6 +121,10 @@
     s = s && typeof s === 'object' ? s : {};
     const out = Object.assign({}, d, s);
     out.settings = Object.assign({}, d.settings, s.settings || {});
+    out.smart = Object.assign({}, d.smart, s.smart && typeof s.smart === 'object' ? s.smart : {});
+    if (!Array.isArray(out.smart.fixedCats)) out.smart.fixedCats = ['e_rent'];
+    if (!out.smart.log || typeof out.smart.log !== 'object') out.smart.log = {};
+    ['income', 'fixed', 'saving', 'jar'].forEach(k => { if (!Number.isFinite(out.smart[k])) out.smart[k] = 0; });
     out.budget = Object.assign({ total: 0, cats: {} }, s.budget || {});
     if (!out.budget.cats || typeof out.budget.cats !== 'object') out.budget.cats = {};
     out.game = Object.assign({}, d.game, s.game || {});

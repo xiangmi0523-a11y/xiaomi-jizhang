@@ -83,7 +83,7 @@
 
   /* ---------- 前后台 ---------- */
   App.onBackground = () => { App.flush(); App.lockNow(); };
-  App.onForeground = () => { App.runRecurring(); if (App.mood.decay()) App.flush(); App.render(true); App.budget.check(); };
+  App.onForeground = () => { App.runRecurring(); if (App.mood.decay()) App.flush(); App.smart.run(); App.render(true); App.budget.check(); };
   document.addEventListener('visibilitychange', () => { if (document.hidden) App.onBackground(); else App.onForeground(); });
   window.addEventListener('pagehide', () => App.flush());
 
@@ -110,6 +110,7 @@
     App.runRecurring();
     App.mood.decay(); App.flush();
     App.render(false);
+    setTimeout(() => App.smart.run(), 500);
     setTimeout(() => App.budget.check(), 800);
     if (App.loadError) UI.toast('数据文件读取失败，已用新账本启动，原数据已另存', 4200);
   };

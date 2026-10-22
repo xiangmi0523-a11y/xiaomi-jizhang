@@ -23,7 +23,8 @@
       <div class="body">
         ${assetCard()}
         <div class="card list menu">
-          ${row('openBudget', '🎯', '预算', bud)}
+          ${row('openSmart', '🧠', '智能预算', App.smart.on() ? (t => (t.left >= 0 ? '今天还能花 ¥' : '今天超出 ¥') + money(Math.abs(t.left)))(App.smart.today()) : '按收入算出每天能花多少')}
+          ${row('openBudget', '🎯', '每月预算', App.smart.on() ? '已由智能预算接管' : bud)}
           ${row('openRecurring', '🔁', '周期记账', rec ? rec + ' 项运行中' : '房租、会员等固定支出自动记')}
           ${row('openCats', '🗂️', '分类管理', '增删、改图标、调整顺序')}
         </div>
@@ -32,7 +33,7 @@
           ${row('openSecurity', '🔒', '密码锁', S.settings.pin ? '已开启' : '未开启')}
           ${row('openData', '💾', '数据与备份', '导出、导入、清空')}
         </div>
-        <div class="card list menu">${row('openAbout', '🌾', '关于晓米记账', 'v1.6')}</div>
+        <div class="card list menu">${row('openAbout', '🌾', '关于晓米记账', 'v1.7')}</div>
       </div>`;
   };
   App.views.mine = { render: mineRender };
@@ -49,6 +50,7 @@
         return `<div class="form">
           <label class="field"><span>总预算</span><input id="bd-total" type="text" inputmode="decimal" placeholder="不设置" value="${S.budget.total ? U.centsToStr(S.budget.total) : ''}"></label>
           <p class="hint">本月已支出 ¥${money(spent)}。设置后，明细页顶部会显示预算剩余。</p>
+          ${App.smart.on() ? '<p class="hint sb-note">已开启智能预算：首页卡片和超支提醒按智能预算的弹性额度计算。这里的总预算在关闭智能预算后才生效。</p>' : ''}
           <div class="card-title pad-t">分类预算（可选）</div>
           <div class="card list">${S.cats.expense.filter(c => !c.hidden).map(c =>
             `<label class="rec"><div class="ico">${c.icon}</div><div class="rec-main"><div class="rec-title">${esc(c.name)}</div><div class="rec-sub">本月已花 ${money(used[c.id] || 0)}</div></div>` +
@@ -325,7 +327,7 @@
   A.openAbout = () => {
     UI.sheet({
       title: '关于', cls: 'compact',
-      render: () => `<div class="about"><div class="avatar big">${App.catArt.svg('n1', { head: true, w: 70, mood: 'happy' })}</div><h3>晓米记账</h3><p class="muted">v1.6 · 给自己用的小账本</p>
+      render: () => `<div class="about"><div class="avatar big">${App.catArt.svg('n1', { head: true, w: 70, mood: 'happy' })}</div><h3>晓米记账</h3><p class="muted">v1.7 · 给自己用的小账本</p>
         <p>所有数据只存在这台手机里，没有账号、没有联网、没有广告。</p>
         <p class="muted">记一笔 · 明细日历 · 统计图表 · 资产账户 · 预算 · 周期记账 · 备份导出</p></div>`
     });
