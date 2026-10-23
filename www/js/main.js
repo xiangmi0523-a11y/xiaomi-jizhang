@@ -140,6 +140,8 @@
   const init = () => {
     startSplash();
     App.load();
+    // v3.1：界面统一成设计稿的奶油黄配色，升级时切回一次（之后想换主题可以在「外观」里换）
+    if (!App.S.settings.ui31) { App.S.settings.ui31 = 1; App.S.settings.theme = 'millet'; }
     App.applyTheme();
     setupViewport();
     if (App.S.settings.pin) App.lockNow();

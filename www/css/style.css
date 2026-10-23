@@ -1350,3 +1350,87 @@ html, body { background: var(--bg); }
 .sp-paws i:nth-child(6) { left: 74%; top: 0; transform: rotate(100deg); animation-delay: 1.5s; }
 @keyframes spStep { 0% { opacity: 0; scale: .4; } 25% { opacity: 1; scale: 1.1; } 70% { opacity: .9; scale: 1; } 100% { opacity: .35; scale: 1; } }
 @media (prefers-reduced-motion: reduce) { #splash * { animation-duration: .01s !important; animation-delay: 0s !important; } }
+
+/* ===== v3.1 · 每个主题统一色调：按钮、进度条、头像底、盲盒卡、小圆点都跟着主题走 ===== */
+:root { --ga: #FFDA61; --gb: #FFBA2E; --g-ink: #5A3400; --g-sh: rgba(240, 160, 40, .35); --soft1: #FFF6D8; --soft2: #FDE29C; --box1: #FFE6A0; --box2: #FFF5D6; --box-ink: #5A3612; --box-sub: #A0784A; --box-line: #F2CF85; --dot: #FFD25A; --dot-ring: #FFF0C2; --deco: #F7C64E; --heart: #EFA27A; }
+:root[data-theme="peach"] { --ga: #FFB898; --gb: #FF8A5C; --g-ink: #fff; --g-sh: rgba(255, 130, 80, .35); --soft1: #FFF1EA; --soft2: #FFCFB8; --box1: #FFD6C4; --box2: #FFF1EA; --box-ink: #5A2414; --box-sub: #B87A62; --box-line: #F5BBA2; --dot: #FF9F7A; --dot-ring: #FFE3D6; --deco: #FFAE8A; --heart: #FF8A6B; }
+:root[data-theme="mint"] { --ga: #7FE2B6; --gb: #3FBF88; --g-ink: #fff; --g-sh: rgba(60, 190, 130, .32); --soft1: #ECFAF3; --soft2: #BDEBD5; --box1: #C9F0DE; --box2: #F0FBF6; --box-ink: #1F4A36; --box-sub: #5E9A80; --box-line: #A5E0C5; --dot: #5CD6A0; --dot-ring: #D6F4E6; --deco: #6FD3A6; --heart: #FF9E9E; }
+:root[data-theme="sky"] { --ga: #93C9FF; --gb: #4E9EF0; --g-ink: #fff; --g-sh: rgba(80, 150, 240, .32); --soft1: #EEF5FF; --soft2: #C3DDFB; --box1: #CFE3FB; --box2: #F2F7FF; --box-ink: #1C3556; --box-sub: #6886AA; --box-line: #AFCFF4; --dot: #6CB6FF; --dot-ring: #DBEBFD; --deco: #8EC3F7; --heart: #FF9EB5; }
+:root[data-theme="grape"] { --ga: #C2AEFF; --gb: #8F72EE; --g-ink: #fff; --g-sh: rgba(140, 110, 240, .32); --soft1: #F5F1FF; --soft2: #D8CCFA; --box1: #E0D6FC; --box2: #F7F4FF; --box-ink: #33225E; --box-sub: #8576AC; --box-line: #CBBDF6; --dot: #A78BFA; --dot-ring: #ECE5FE; --deco: #B9A4FA; --heart: #FF9EC4; }
+:root[data-theme="sakura"] { --ga: #FFB3CB; --gb: #F2799F; --g-ink: #fff; --g-sh: rgba(240, 120, 160, .32); --soft1: #FFF1F5; --soft2: #FFCCDB; --box1: #FFD3E0; --box2: #FFF3F7; --box-ink: #5A1F33; --box-sub: #B57C8F; --box-line: #F8B8CC; --dot: #FF8FB1; --dot-ring: #FFE1EA; --deco: #FFA6C2; --heart: #FF7FA6; }
+:root[data-theme="matcha"] { --ga: #B8DC92; --gb: #84B856; --g-ink: #fff; --g-sh: rgba(130, 180, 80, .32); --soft1: #F3F9EA; --soft2: #D3E9BA; --box1: #DCEDC6; --box2: #F5FAEE; --box-ink: #2C4216; --box-sub: #7E9764; --box-line: #C4DFA6; --dot: #9BCB6E; --dot-ring: #E4F1D6; --deco: #A9D27F; --heart: #F2A08A; }
+:root[data-theme="caramel"] { --ga: #EFBE8E; --gb: #D38B4E; --g-ink: #fff; --g-sh: rgba(210, 140, 80, .32); --soft1: #FCF2E7; --soft2: #EED2B2; --box1: #F1D8BC; --box2: #FCF4EB; --box-ink: #4A2A10; --box-sub: #A57D5A; --box-line: #E6C39E; --dot: #E0A06A; --dot-ring: #F6E4D2; --deco: #E8B482; --heart: #E89A7A; }
+:root[data-theme="starry"] { --ga: #A396FF; --gb: #7C6CF0; --g-ink: #fff; --g-sh: rgba(124, 108, 240, .4); --soft1: #3A3680; --soft2: #2C2A66; --box1: #34307A; --box2: #262A5C; --box-ink: #EEEDFF; --box-sub: #A3A6D6; --box-line: #4A4AA0; --dot: #A396FF; --dot-ring: #34307A; --deco: #FFE9A8; --heart: #FF9EC4; }
+@media (prefers-color-scheme: dark) { :root[data-mode="auto"] { --soft1: #3A3020; --soft2: #2E271B; --box1: var(--hc2); --box2: var(--hc1); --box-ink: var(--text); --box-sub: var(--sub); --box-line: var(--edge2); --dot-ring: var(--chip); } }
+:root[data-mode="dark"] { --soft1: #3A3020; --soft2: #2E271B; --box1: var(--hc2); --box2: var(--hc1); --box-ink: var(--text); --box-sub: var(--sub); --box-line: var(--edge2); --dot-ring: var(--chip); }
+
+.tab-add, :root[data-theme] .tab-add { background: linear-gradient(180deg, var(--ga), var(--gb)); box-shadow: 0 0 0 5px var(--bg), 0 10px 20px var(--g-sh); color: #fff; }
+.btn.primary, .mini-btn, .key.done, .sign-fab, .box-card.ready .bx-btn, .feed-btn:not(.poor) { color: var(--g-ink); background: linear-gradient(180deg, var(--ga), var(--gb)); border: 0; box-shadow: 0 5px 12px var(--g-sh); }
+.sign-fab { border: 3px solid var(--card); }
+.sign-fab .sf-txt { color: var(--g-ink); }
+@keyframes softGlow { 0%, 100% { box-shadow: 0 3px 8px var(--g-sh); } 50% { box-shadow: 0 3px 18px 4px var(--g-sh); } }
+.bd-cat, .mine-hero .avatar { background: radial-gradient(circle at 50% 35%, var(--soft1), var(--soft2)); }
+.bd-bar i { background: linear-gradient(90deg, var(--ga), var(--gb)); }
+.bd-spark { color: var(--deco); }
+.box-card, :root[data-mode="dark"] .box-card, :root[data-theme="starry"] .box-card { background: linear-gradient(115deg, var(--box1), var(--box2) 55%, var(--box1)); color: var(--box-ink); }
+@media (prefers-color-scheme: dark) { :root[data-mode="auto"] .box-card { background: linear-gradient(115deg, var(--box1), var(--box2) 55%, var(--box1)); color: var(--box-ink); } }
+.bx-main b em, .bx-main > span, .bx-dots small { color: var(--box-sub); }
+.bx-dots i { box-shadow: inset 0 0 0 1.5px var(--box-line); }
+.bx-btn { color: var(--box-sub); box-shadow: 0 0 0 1.5px var(--box-line); }
+.dh-dot { background: var(--dot); box-shadow: 0 0 0 3px var(--dot-ring); }
+.t3-d.r, .hm-heart { color: var(--heart); }
+.cat.on .ci { box-shadow: 0 0 0 2.5px var(--accent), 0 4px 10px var(--g-sh); }
+.sd.on, .sv-cell.on, .sp-tag.on, .sv-tag.done { background: var(--accent); color: var(--accent-ink); }
+.shop-item.cur, .sv-opt.on, .sv-bar { background: var(--soft1); }
+.dex-bar i { background: linear-gradient(90deg, var(--ga), var(--gb)); }
+#toast.gold { background: linear-gradient(135deg, var(--ga), var(--gb)); color: var(--g-ink); }
+.sv-entry { border: 0; box-shadow: 0 0 0 1.5px var(--edge), var(--shadow); }
+
+/* ===== v3.1 · 「我的」页（设计稿 1 · 双色线性图标） ===== */
+.mine3 { padding-bottom: 6px; }
+.m3-prof { position: relative; display: flex; align-items: center; gap: 14px; margin-top: 6px; padding: 16px 18px; border-radius: 26px; overflow: hidden; background: linear-gradient(160deg, var(--hc1), var(--hc2)); box-shadow: 0 0 0 2px var(--edge2), var(--shadow); }
+.m3-prof .avatar { width: 66px; height: 66px; flex: 0 0 auto; border-radius: 50%; overflow: hidden; background: radial-gradient(circle at 50% 35%, var(--soft1), var(--soft2)); box-shadow: 0 0 0 3px var(--card), 0 0 0 4.5px var(--edge2); }
+.m3-prof .avatar .xc { width: 62px !important; margin-top: 10px; }
+.m3-who { min-width: 0; }
+.m3-who .hero-title { font-size: 22px; }
+.m3-who .hero-title::before { display: none; }
+.m3-who .hero-sub { color: var(--sub); opacity: 1; font-size: 13px; margin-top: 3px; }
+.m3-whisk { position: absolute; right: 14px; top: 50%; width: 86px; height: 58px; margin-top: -29px; color: var(--edge2); opacity: .9; }
+.m3-duo { display: grid; grid-template-columns: 1.15fr 1fr; gap: 10px; margin-bottom: 4px; }
+.m3-tile { position: relative; display: flex; flex-direction: column; align-items: flex-start; min-width: 0; min-height: 96px; padding: 12px 12px 12px 14px; text-align: left; border-radius: 22px; background: linear-gradient(160deg, var(--card), var(--hc1)); box-shadow: 0 0 0 1.5px var(--edge), var(--shadow); overflow: hidden; }
+.m3-tile:active { transform: scale(.98); }
+.m3-l { font-size: 12.5px; font-weight: 700; color: var(--sub); }
+.m3-tile b { margin-top: 6px; font-size: 21px; font-weight: 900; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; position: relative; z-index: 1; }
+.m3-tile small { margin-top: 2px; font-size: 11.5px; color: var(--sub); white-space: nowrap; position: relative; z-index: 1; }
+.m3-ic { position: absolute; right: 8px; bottom: 8px; width: 44px; height: 44px; color: var(--text); opacity: .95; }
+.m3-ic svg { width: 100%; height: 100%; display: block; }
+.m3-ic .tf { fill: var(--soft2); stroke: none; }
+.m3-tile .sv-tag { position: absolute; right: 10px; top: 10px; }
+.m3-sec { margin: 14px 6px 8px; font-size: 14px; font-weight: 900; color: var(--text); display: flex; align-items: center; gap: 6px; }
+.m3-sec::before { content: ''; width: 4px; height: 14px; border-radius: 2px; background: linear-gradient(180deg, var(--ga), var(--gb)); }
+.menu-row .mi { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; background: var(--soft1); box-shadow: inset 0 0 0 1.5px var(--edge); color: var(--text); font-size: 18px; flex: 0 0 auto; }
+.menu-row .mi svg { width: 22px; height: 22px; display: block; }
+.menu-row .mi .tf { fill: var(--soft2); stroke: none; }
+.menu-row.m3-row { padding: 12px 14px; gap: 12px; }
+.m3-row .mt { flex: 0 0 auto; font-size: 15.5px; }
+.m3-sub { flex: 1; min-width: 0; text-align: right; font-size: 12.5px; color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.menu-row:active .mi { transform: scale(.92); }
+:root[data-mode="dark"] .menu-row .mi, :root[data-theme="starry"] .menu-row .mi { background: var(--chip); }
+@media (prefers-color-scheme: dark) { :root[data-mode="auto"] .menu-row .mi { background: var(--chip); } }
+.m3-ic { top: 10px; bottom: auto; right: 10px; width: 36px; height: 36px; }
+.m3-tile b { margin-top: 14px; }
+.m3-tile .sv-tag { top: auto; bottom: 10px; }
+
+/* ===== v3.1 · 小米黄主题精确对照设计稿 A：奶油底、金色描边、棕色字、橙色金额，底栏图标也上色 ===== */
+:root:not([data-theme]), :root[data-theme="millet"] { --bg: #FCF6E6; --text: #5A3418; --sub: #A98C6C; --edge: #F2DCA8; --edge2: #F2C86A; --amt: #E8862B; --tag: #EFA23A; --hc1: #FFFBEE; --hc2: #FCEFC9; --hf1: #FBE6B0; --hf2: #FFF3D2; }
+:root[data-theme="millet"] .tab { color: #8A6440; }
+:root[data-theme="millet"] .tab .tf { fill: #FCE3B0; }
+:root[data-theme="millet"] .tab[data-t="inn"] .tf { fill: #F8C9A0; }
+:root[data-theme="millet"] .tab.on { color: #DD8418; }
+:root[data-theme="millet"] .tab.on .tf { fill: #FFC53D; }
+:root[data-theme="millet"] .hm-card { box-shadow: 0 0 0 2.5px #F2C86A, 0 8px 22px rgba(190, 130, 40, .14), inset 0 1px 0 #fff; }
+:root[data-theme="millet"] .t3-title { color: #5A3418; text-shadow: 0 2px 0 #FCE3B0; }
+@media (prefers-color-scheme: dark) { :root[data-theme="millet"][data-mode="auto"] { --text: #F4ECDD; --sub: #A69C88; --edge: #3A3226; --edge2: #4A3E2A; --hc1: #2A251C; --hc2: #312A1D; --hf1: #3A3020; --hf2: #2E281E; --bg: #15130F; } :root[data-theme="millet"][data-mode="auto"] .tab .tf { fill: #3A3020; } :root[data-theme="millet"][data-mode="auto"] .t3-title { text-shadow: none; color: #F4ECDD; } }
+:root[data-theme="millet"][data-mode="dark"] { --text: #F4ECDD; --sub: #A69C88; --edge: #3A3226; --edge2: #4A3E2A; --hc1: #2A251C; --hc2: #312A1D; --hf1: #3A3020; --hf2: #2E281E; --bg: #15130F; }
+:root[data-theme="millet"][data-mode="dark"] .tab .tf { fill: #3A3020; }
+:root[data-theme="millet"][data-mode="dark"] .t3-title { text-shadow: none; color: #F4ECDD; }

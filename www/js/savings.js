@@ -98,9 +98,9 @@
   SV.cardHTML = () => {
     const act = SV.active(), pend = SV.pendingCount();
     const total = st().plans.reduce((a, p) => a + SV.saved(p), 0);
-    return `<button class="card sv-entry" data-act="openSavings"><span class="sv-pig">🐷</span>
-      <span class="sv-entry-main"><b>存钱计划</b><small>${act.length ? `进行中 ${act.length} 项 · 已存 ¥${money(total)}` : '365天、52周、12月存钱…选一个开始吧'}</small></span>
-      ${pend ? `<span class="sv-tag pend">${pend} 项待打卡</span>` : ''}<span class="mr">${UI.icons.chev}</span></button>`;
+    return `<button class="m3-tile sv-entry" data-act="openSavings"><span class="m3-l">存钱计划</span>
+      <b>${act.length ? '¥' + money(total) : '去开始'}</b><small>${act.length ? `进行中 ${act.length} 项` : '365天 · 52周 · 12月'}</small>
+      ${pend ? `<span class="sv-tag pend">${pend} 项待打卡</span>` : ''}<i class="m3-ic">${UI.deco.piggy()}</i></button>`;
   };
 
   const planCard = p => {
