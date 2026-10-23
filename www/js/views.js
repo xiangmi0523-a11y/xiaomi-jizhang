@@ -6,6 +6,9 @@
   // 马卡龙色系
   const PALETTE = ['#FFB3C7', '#A8E6CF', '#FFD3A5', '#B5D8FF', '#D7BCFF', '#FFE89A', '#B8F0EA', '#FFC1A1', '#CFEFB0', '#F6C6EA', '#E5DCCF'];
   App.PALETTE = PALETTE;
+  // 每个分类固定一个浅色圆底（按分类 id 取色，同一分类每次都一样）
+  const ICO_BG = ['#FFE7C2', '#DDF1D5', '#FFE0DA', '#DCEBFF', '#EFE2FF', '#FFF0B8', '#D7F3EE', '#FFE2EF'];
+  App.icoBg = id => { let h = 0; String(id || '').split('').forEach(c => { h = (h * 31 + c.charCodeAt(0)) | 0; }); return ICO_BG[Math.abs(h) % ICO_BG.length]; };
 
   /* ================= 公共：记录行 / 月份选择 ================= */
   App.recRow = (r, o = {}) => {
@@ -24,7 +27,7 @@
       if (r.note) sub.push(r.note);
       sub.push(App.accName(r.acc));
     }
-    return `<div class="rec" data-act="editRec" data-id="${esc(r.id)}"><div class="ico">${ico}</div>` +
+    return `<div class="rec" data-act="editRec" data-id="${esc(r.id)}"><div class="ico" style="--ib:${App.icoBg(r.type === 'transfer' ? 'tr' : r.cat)}">${ico}</div>` +
       `<div class="rec-main"><div class="rec-title">${esc(title)}${r.rec ? ' <i class="rec-flag">周期</i>' : ''}</div>` +
       `<div class="rec-sub">${esc(sub.join(' · '))}</div></div><div class="rec-amt ${cls}">${amt}</div></div>`;
   };
@@ -42,7 +45,7 @@
     const bits = [];
     if (s.expense) bits.push('支出 ' + money(s.expense));
     if (s.income) bits.push('收入 ' + money(s.income));
-    return `<div class="day-head"><span>${U.dayLabel(date)}<em>周${U.WD[U.wd(date)]}</em><button class="rc-day" data-act="openReceipt" data-d="${date}" aria-label="当日小票">${UI.icons.receipt}</button></span><span class="muted">${bits.join('　')}</span></div>`;
+    return `<div class="day-head"><span><i class="dh-dot"></i>${U.dayLabel(date)}<em>周${U.WD[U.wd(date)]}</em><button class="rc-day" data-act="openReceipt" data-d="${date}" aria-label="当日小票">${UI.icons.receipt}</button></span><span class="muted">${bits.join('　')}</span></div>`;
   };
   const listHTML = (recs, emptyMsg) => {
     if (!recs.length) return `<div class="empty"><div class="empty-cat">${App.catArt.svg('n1', { w: 130 })}</div><p>${emptyMsg || '这里还没有记录'}</p></div>`;
@@ -78,7 +81,9 @@
     const recs = App.recordsByMonth(H.ym);
     const sums = App.sum(recs);
     const budHTML = App.budget.heroHTML(sums.expense);
-    const hero = `<div class="hero">
+    const D = UI.deco, bal = sums.income - sums.expense;
+    const hero = `<div class="hero home3">
+      <div class="t3"><span class="t3-d l">${D.pawLine()}</span><h1 class="t3-title">晓米记账</h1><span class="t3-d r">${D.heart()}</span></div>
       <div class="hero-top">
         <button class="month-btn" data-act="homeMonth">${U.ymLabel(H.ym)}<span class="caret">${UI.icons.down}</span></button>
         <div class="hero-actions">
@@ -88,12 +93,21 @@
           <button class="icon-btn" data-act="homeMode" aria-label="切换视图">${H.mode === 'list' ? UI.icons.cal : UI.icons.list}</button>
         </div>
       </div>
-      <div class="hero-main"><div class="lbl">本月支出</div><div class="big"><small>¥</small>${money(sums.expense)}</div></div>
-      <div class="hero-row">
-        <div><span>收入</span><b>${money(sums.income)}</b></div>
-        <div><span>结余</span><b>${money(sums.income - sums.expense)}</b></div>
-        <div><span>笔数</span><b>${recs.length}</b></div>
-      </div>${budHTML}</div>`;
+      <section class="hm-card">
+        <div class="hm-top">
+          <div class="hm-l">
+            <span class="hm-tag">本月支出${D.paw()}</span>
+            <div class="hm-big"><small>¥</small>${money(sums.expense)}</div>
+            <div class="hm-n">共 ${recs.length} 笔${recs.length ? ' · 最近一笔 ' + U.dayLabel(recs[0].date) : ''}</div>
+          </div>
+          <div class="hm-cat"><span class="hm-heart">${D.heart()}</span>${App.catArt.svg(App.budget.catId(), { w: 112, mood: 'happy' })}<span class="hm-purse">${D.purse()}</span></div>
+        </div>
+        <div class="hm-foot">${D.wave('hm-wave')}
+          <div class="hm-f"><i>${D.coins()}</i><span><small>收入</small><b>¥${money(sums.income)}</b></span></div>
+          <div class="hm-f"><i>${D.piggy()}</i><span><small>结余</small><b class="${bal < 0 ? 'neg' : ''}">${bal < 0 ? '-' : ''}¥${money(Math.abs(bal))}</b></span></div>
+        </div>
+      </section>
+      ${budHTML}</div>`;
     return hero + `<div class="body">${App.cats.boxCardHTML()}${H.mode === 'list' ? listHTML(recs, '这个月还没有记录<br>点下面的 ＋ 记第一笔吧') : calHTML(recs)}</div>` + App.game.signFabHTML();
   };
 
@@ -118,7 +132,7 @@
     const heads = Array.from({ length: 7 }, (_, k) => `<div>${U.WD[(ws + k) % 7]}</div>`).join('');
     const dayRecs = recs.filter(r => r.date === H.sel);
     return `<div class="card cal"><div class="cal-head">${heads}</div><div class="cal-grid">${cells}</div></div>` +
-      `<div class="day-head"><span>${U.dayLabel(H.sel)}<em>周${U.WD[U.wd(H.sel)]}</em><button class="rc-day" data-act="openReceipt" data-d="${H.sel}" aria-label="当日小票">${UI.icons.receipt}</button></span><span class="muted">${dayRecs.length ? dayRecs.length + ' 笔' : ''}</span></div>` +
+      `<div class="day-head"><span><i class="dh-dot"></i>${U.dayLabel(H.sel)}<em>周${U.WD[U.wd(H.sel)]}</em><button class="rc-day" data-act="openReceipt" data-d="${H.sel}" aria-label="当日小票">${UI.icons.receipt}</button></span><span class="muted">${dayRecs.length ? dayRecs.length + ' 笔' : ''}</span></div>` +
       (dayRecs.length ? `<div class="card list">${dayRecs.map(r => App.recRow(r)).join('')}</div>` : '<div class="empty small"><p>这一天没有记录</p></div>');
   };
 
@@ -243,7 +257,7 @@
       const top = d.cats[0].sum;
       rank = d.cats.map((c, i) => {
         const cat = App.cat(c.id);
-        return `<div class="rank" data-act="statCat" data-id="${esc(c.id)}"><div class="ico">${cat.icon}</div><div class="rank-main">` +
+        return `<div class="rank" data-act="statCat" data-id="${esc(c.id)}"><div class="ico" style="--ib:${App.icoBg(c.id)}">${cat.icon}</div><div class="rank-main">` +
           `<div class="rank-row"><span>${esc(cat.name)} <em>${(c.sum / d.total * 100).toFixed(1)}%</em></span><b>${money(c.sum)}</b></div>` +
           `<div class="bar thin"><i style="width:${Math.max(3, Math.round(c.sum / top * 100))}%;background:${PALETTE[i] || '#C9C2B4'}"></i></div>${catBud(c)}</div></div>`;
       }).join('');

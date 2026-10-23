@@ -335,5 +335,5 @@
   };
 
   // 底栏图标：小房子
-  UI.icons.inn = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 11 12 4l8.5 7"/><path d="M5.5 9.5V20h13V9.5"/><path d="M10 20v-5h4v5"/></svg>';
+  UI.icons.inn = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path class="tf" d="M5.5 9.8V20h13V9.8L12 4.6z"/><path d="M3.5 11 12 4l8.5 7"/><path d="M10 20v-5h4v5"/></svg>';
 })();

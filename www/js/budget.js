@@ -29,6 +29,8 @@
     return { spent: App.sum(App.recordsByMonth(U.curYM())).expense, total: App.S.budget.total, smart: false };
   };
 
+  const deco = () => `<i class="bd-spark">${App.UI.deco.spark()}</i><i class="bd-paw">${App.UI.deco.pawLine()}</i>`;
+
   /* ---------- 首页顶部 ---------- */
   B.heroHTML = spent => {
     if (App.smart && App.smart.on()) {
@@ -37,15 +39,15 @@
       return `<button class="bud2 smart lv${lv}" data-act="openSmart">
         <span class="bd-cat">${App.catArt.svg(B.catId(), { head: true, w: 52, mood })}</span>
         <span class="bd-main">
-          <span class="bd-row"><span>${t.left >= 0 ? '今天还能花' : '今天超出'} <b>¥${money(Math.abs(t.left))}</b></span><em>今日额度 ¥${money(t.allow)}</em></span>
+          <span class="bd-row"><span>${t.left >= 0 ? '今天还能花' : '今天超出'} <b>¥${money(Math.abs(t.left))}</b></span></span>
           ${barHTML(m.spent, m.quota, lv)}
-          <span class="bd-msg">本月已花 ¥${money(m.spent)} / 可用 ¥${money(m.quota)} · ${m.remain >= 0 ? '预计存下 ¥' + money(m.expectSave) : '已超支 ¥' + money(-m.remain)}</span>
-        </span></button>`;
+          <span class="bd-msg">今日额度 ¥${money(t.allow)}　|　本月已用 ${Math.round(m.pct * 100)}%</span>
+        </span>${deco()}</button>`;
     }
     const total = App.S.budget.total;
     if (!total) {
       return `<button class="bud2 none" data-act="openSmart"><span class="bd-cat">${App.catArt.svg(B.catId(), { head: true, w: 46 })}</span>
-        <span class="bd-main"><b>开启智能预算</b><span class="bd-msg">填收入和固定开销，帮你算出每天能花多少 ›</span></span></button>`;
+        <span class="bd-main"><b>开启智能预算</b><span class="bd-msg">填收入和固定开销，帮你算出每天能花多少 ›</span></span>${deco()}</button>`;
     }
     const lv = B.level(spent, total), remain = total - spent;
     return `<button class="bud2 lv${lv}" data-act="openBudget">
@@ -53,8 +55,8 @@
       <span class="bd-main">
         <span class="bd-row"><span>${remain >= 0 ? '本月预算剩余' : '本月已超支'} <b>¥${money(Math.abs(remain))}</b></span><em>${Math.round(spent / total * 100)}%</em></span>
         ${barHTML(spent, total, lv)}
-        <span class="bd-msg">${MSG[lv]}</span>
-      </span></button>`;
+        <span class="bd-msg">每月预算 ¥${money(total)}　|　${MSG[lv].replace(/~$/, '')}</span>
+      </span>${deco()}</button>`;
   };
 
   /* ---------- 弹窗队列：多个提醒依次弹，不会叠在一起 ---------- */

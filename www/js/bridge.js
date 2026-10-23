@@ -18,6 +18,7 @@
   App.quickAdd = () => {
     if (App.UI && App.UI.closeAll) App.UI.closeAll();
     if (App.receipt && App.receipt.close) App.receipt.close();
+    if (App.endSplash) App.endSplash(true);   // 从小组件/通知直接记账时不用等启动动画
     App.tab = 'home';
     App.render(false);
     App.openEditor({});

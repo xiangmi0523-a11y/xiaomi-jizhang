@@ -31,7 +31,7 @@
       }
       const list = S.cats[E.type].filter(c => !c.hidden || c.id === E.cat);
       catsEl.innerHTML = '<div class="cats">' + list.map(c =>
-        `<button class="cat${c.id === E.cat ? ' on' : ''}" data-cat="${esc(c.id)}"><span class="ci">${c.icon}</span><span class="cn">${esc(c.name)}</span></button>`
+        `<button class="cat${c.id === E.cat ? ' on' : ''}" data-cat="${esc(c.id)}"><span class="ci" style="--ib:${App.icoBg(c.id)}">${c.icon}</span><span class="cn">${esc(c.name)}</span></button>`
       ).join('') + `<button class="cat" data-ed="manage"><span class="ci">⚙️</span><span class="cn">管理</span></button></div>`;
     };
     const paintChips = () => {

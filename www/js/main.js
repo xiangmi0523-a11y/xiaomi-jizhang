@@ -57,7 +57,7 @@
     el.hidden = false; paint();
     if (o.bio) {   // 面容 / 指纹：成功直接解锁，失败或取消就用密码
       Lock.onBio = ok => { if (!Lock.active) return; if (ok) close('bio'); else paint('可以输入 4 位密码解锁'); };
-      setTimeout(() => { if (Lock.active) App.native('auth', {}); }, 350);
+      setTimeout(() => App.afterSplash(() => { if (Lock.active) App.native('auth', {}); }), 350);   // 等启动动画放完再弹面容 ID
     }
     el.onclick = e => {
       const b = e.target.closest('[data-lk]'); if (!b) return;
@@ -118,7 +118,27 @@
   };
 
   /* ---------- 启动 ---------- */
+  /* ---------- 启动动画：约 2 秒后淡出，点一下可以跳过 ---------- */
+  const splashWait = [];
+  let splashEl = null;
+  App.afterSplash = fn => { if (splashEl) splashWait.push(fn); else fn(); };
+  App.endSplash = fast => {
+    const el = splashEl; if (!el) return;
+    splashEl = null;
+    el.classList.add('out');
+    setTimeout(() => { el.remove(); splashWait.splice(0).forEach(fn => { try { fn(); } catch (e) { /* ignore */ } }); }, fast ? 160 : 420);
+  };
+  const startSplash = () => {
+    splashEl = document.getElementById('splash');
+    if (!splashEl) return;
+    const cat = splashEl.querySelector('.sp-cat');
+    if (cat && App.catArt) cat.innerHTML = App.catArt.svg('n1', { head: true, w: 130, mood: 'happy' });
+    splashEl.addEventListener('click', () => App.endSplash(true));
+    setTimeout(() => App.endSplash(), 2150);
+  };
+
   const init = () => {
+    startSplash();
     App.load();
     App.applyTheme();
     setupViewport();

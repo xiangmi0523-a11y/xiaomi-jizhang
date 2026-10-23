@@ -43,7 +43,7 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
         view.backgroundColor = UIColor { trait in
             trait.userInterfaceStyle == .dark
                 ? UIColor(red: 0.082, green: 0.075, blue: 0.059, alpha: 1)
-                : UIColor(red: 1.0, green: 0.976, blue: 0.925, alpha: 1)
+                : UIColor(red: 0.988, green: 0.961, blue: 0.894, alpha: 1)
         }
 
         let config = WKWebViewConfiguration()
