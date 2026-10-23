@@ -6,10 +6,46 @@
 
   /* ---------- 底部导航 ---------- */
   const TABS = [['home', '明细'], ['stats', '统计'], ['add', ''], ['inn', '客栈'], ['mine', '我的']];
+  // 液态玻璃底栏：按钮只在切换页面时重画；选中格下面有一个会弹性滑动的玻璃泡
+  let lensReady = false;
+  const moveLens = jelly => {
+    const bar = document.getElementById('tabbar'), lens = bar.querySelector('.tab-lens'), on = bar.querySelector('.tab.on');
+    if (!lens || !on) { if (lens) lens.style.opacity = '0'; return; }
+    const w = on.offsetWidth + 10, x = on.offsetLeft - 5;
+    if (!lensReady) { lens.classList.add('still'); }
+    lens.style.opacity = '1'; lens.style.width = w + 'px'; lens.style.transform = `translateX(${x}px)`;
+    if (!lensReady) { void lens.offsetWidth; lens.classList.remove('still'); lensReady = true; }
+    if (jelly) { lens.classList.remove('jelly'); void lens.offsetWidth; lens.classList.add('jelly'); }
+  };
   const renderTabbar = () => {
-    document.getElementById('tabbar').innerHTML = TABS.map(t => t[0] === 'add'
+    const bar = document.getElementById('tabbar');
+    let row = bar.querySelector('.tab-row');
+    if (!row) {
+      bar.innerHTML = '<i class="tab-lens"></i><i class="tab-sheen"></i><div class="tab-row"></div>';
+      row = bar.querySelector('.tab-row');
+    }
+    const cur = App.tab === 'assets' ? 'mine' : App.tab;
+    if (row.dataset.k === cur) return;
+    const jelly = !!row.dataset.k;
+    row.dataset.k = cur;
+    row.innerHTML = TABS.map(t => t[0] === 'add'
       ? `<button class="tab-add" data-act="add" aria-label="记一笔">${UI.icons.plus}</button>`
-      : `<button class="tab${(App.tab === t[0] || (t[0] === 'mine' && App.tab === 'assets')) ? ' on' : ''}" data-act="tab" data-t="${t[0]}">${UI.icons[t[0]]}<span>${t[1]}</span></button>`).join('');
+      : `<button class="tab${cur === t[0] ? ' on' : ''}" data-act="tab" data-t="${t[0]}">${UI.icons[t[0]]}<span>${t[1]}</span></button>`).join('');
+    requestAnimationFrame(() => moveLens(jelly));
+  };
+  window.addEventListener('resize', () => moveLens(false));
+
+  // 往下滑时底栏缩小，往上滑或回到顶部时恢复（和 iOS 26 一样）
+  const setupBarScroll = () => {
+    const page = document.getElementById('page'), bar = document.getElementById('tabbar');
+    let last = 0;
+    page.addEventListener('scroll', () => {
+      const y = page.scrollTop;
+      if (y > last + 6 && y > 90) bar.classList.add('mini');
+      else if (y < last - 6 || y < 40) bar.classList.remove('mini');
+      last = y;
+    }, { passive: true });
+    bar.addEventListener('transitionend', e => { if (e.propertyName === 'height') moveLens(false); });
   };
 
   App.render = keep => {
@@ -22,7 +58,7 @@
     App.sheets.slice().forEach(h => { if (h.opt.autoRefresh && !h.closed) h.update(); });
   };
 
-  A.tab = el => { App.tab = el.dataset.t; App.render(false); };
+  A.tab = el => { App.tab = el.dataset.t; document.getElementById('tabbar').classList.remove('mini'); App.render(false); };
   A.add = () => App.openEditor(App.tab === 'home' && App.home.mode === 'cal' ? { date: App.home.sel } : {});
   A.sheetClose = el => { const s = el.closest('.sheet'); if (s && s._h) s._h.close(); };
 
@@ -144,6 +180,7 @@
     if (!App.S.settings.ui31) { App.S.settings.ui31 = 1; App.S.settings.theme = 'millet'; }
     App.applyTheme();
     setupViewport();
+    setupBarScroll();
     if (App.S.settings.pin) App.lockNow();
     App.runRecurring();
     App.mood.decay(); App.flush();

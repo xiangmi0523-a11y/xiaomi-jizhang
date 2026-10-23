@@ -1434,3 +1434,63 @@ html, body { background: var(--bg); }
 :root[data-theme="millet"][data-mode="dark"] { --text: #F4ECDD; --sub: #A69C88; --edge: #3A3226; --edge2: #4A3E2A; --hc1: #2A251C; --hc2: #312A1D; --hf1: #3A3020; --hf2: #2E281E; --bg: #15130F; }
 :root[data-theme="millet"][data-mode="dark"] .tab .tf { fill: #3A3020; }
 :root[data-theme="millet"][data-mode="dark"] .t3-title { text-shadow: none; color: #F4ECDD; }
+
+/* ===== v3.2 · 液态玻璃底栏（iOS 26 风格）：半透明毛玻璃 + 边缘高光 + 弹性滑动的选中玻璃泡 + 下滑自动缩小 ===== */
+#page { padding-bottom: calc(var(--safe-bottom) + 92px); }
+#tabbar {
+  position: fixed; left: 14px; right: 14px; bottom: calc(var(--safe-bottom) + 10px); z-index: 6; margin: 0; padding: 0 6px; height: 66px; border-radius: 33px; isolation: isolate;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .64), rgba(255, 249, 234, .48));
+  -webkit-backdrop-filter: blur(22px) saturate(190%) brightness(1.04); backdrop-filter: blur(22px) saturate(190%) brightness(1.04);
+  box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, .95), inset 0 -1.5px 2px rgba(255, 255, 255, .45), inset 0 0 14px rgba(255, 255, 255, .35),
+    0 0 0 .5px rgba(150, 105, 40, .16), 0 14px 34px rgba(120, 80, 20, .20), 0 3px 8px rgba(120, 80, 20, .08);
+  transition: height .35s cubic-bezier(.3, 1.3, .5, 1), left .35s cubic-bezier(.3, 1.3, .5, 1), right .35s cubic-bezier(.3, 1.3, .5, 1), border-radius .35s;
+}
+/* 玻璃边缘的折射高光环 */
+#tabbar::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 1.3px; pointer-events: none; z-index: 3;
+  background: linear-gradient(135deg, rgba(255, 255, 255, .95), rgba(255, 255, 255, .15) 38%, rgba(255, 214, 140, .55) 68%, rgba(255, 255, 255, .85));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+/* 左上角的光泽 */
+.tab-sheen { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 0;
+  background: radial-gradient(110% 95% at 14% -20%, rgba(255, 255, 255, .8), transparent 46%), radial-gradient(70% 70% at 92% 125%, rgba(255, 255, 255, .45), transparent 55%), linear-gradient(90deg, transparent 30%, rgba(255, 255, 255, .18) 50%, transparent 70%); }
+.tab-row { position: relative; z-index: 2; flex: 1; width: 100%; display: flex; align-items: center; height: 100%; }
+/* 选中格下面的玻璃泡 */
+.tab-lens { position: absolute; left: 0; top: 7px; bottom: 7px; width: 0; z-index: 1; border-radius: 26px; pointer-events: none; opacity: 0;
+  background: radial-gradient(120% 120% at 30% 0%, rgba(255, 255, 255, .95), rgba(255, 255, 255, .55) 45%, rgba(255, 228, 160, .45));
+  box-shadow: inset 0 1.5px 0 #fff, inset 0 -2px 6px rgba(255, 196, 80, .28), inset 0 0 0 1px rgba(255, 255, 255, .6), 0 4px 14px rgba(160, 110, 40, .18);
+  transition: transform .55s cubic-bezier(.32, 1.45, .45, 1), width .45s cubic-bezier(.32, 1.45, .45, 1), opacity .2s; will-change: transform; }
+.tab-lens.still { transition: none; }
+.tab-lens.jelly { animation: lensJelly .55s cubic-bezier(.3, 1.4, .5, 1); }
+@keyframes lensJelly { 0% { scale: 1 1; } 30% { scale: 1.22 .86; } 60% { scale: .94 1.06; } 100% { scale: 1 1; } }
+.tab { position: relative; height: 66px; transition: height .35s, color .25s; }
+.tab span { transition: opacity .2s, max-height .3s; max-height: 16px; }
+.tab svg { transition: transform .25s cubic-bezier(.3, 1.6, .5, 1); }
+.tab:active svg { transform: scale(.86); }
+.tab.on svg { animation: none; transform: translateY(-1px) scale(1.06); }
+.tab-add, :root[data-theme] .tab-add { position: relative; overflow: hidden; margin: -30px 6px 0; box-shadow: 0 0 0 4px rgba(255, 255, 255, .6), 0 10px 22px var(--g-sh), inset 0 2px 0 rgba(255, 255, 255, .55), inset 0 -4px 8px rgba(0, 0, 0, .08); transition: transform .3s cubic-bezier(.3, 1.6, .5, 1), width .35s, height .35s, flex-basis .35s, margin .35s; }
+.tab-add::before { content: ''; position: absolute; left: 14%; right: 14%; top: 6%; height: 42%; border-radius: 50%; background: linear-gradient(180deg, rgba(255, 255, 255, .7), rgba(255, 255, 255, 0)); pointer-events: none; }
+.tab-add svg { position: relative; }
+/* 下滑时缩成细条 */
+#tabbar.mini { height: 54px; left: 34px; right: 34px; border-radius: 27px; }
+#tabbar.mini .tab { height: 54px; }
+#tabbar.mini .tab span { opacity: 0; max-height: 0; }
+#tabbar.mini .tab-lens { top: 6px; bottom: 6px; }
+#tabbar.mini .tab-add { flex-basis: 50px; width: 50px; height: 50px; margin-top: -14px; }
+#tabbar.mini .tab-add svg { width: 24px; height: 24px; }
+/* 深色 / 星空 */
+:root[data-mode="dark"] #tabbar, :root[data-theme="starry"] #tabbar { background: linear-gradient(180deg, rgba(60, 54, 42, .55), rgba(30, 27, 21, .45)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .22), inset 0 0 12px rgba(255, 255, 255, .05), 0 14px 34px rgba(0, 0, 0, .45); }
+:root[data-theme="starry"] #tabbar { background: linear-gradient(180deg, rgba(60, 64, 130, .55), rgba(31, 34, 70, .45)); }
+:root[data-mode="dark"] #tabbar::after, :root[data-theme="starry"] #tabbar::after { background: linear-gradient(135deg, rgba(255, 255, 255, .45), rgba(255, 255, 255, .05) 40%, rgba(255, 255, 255, .25)); }
+:root[data-mode="dark"] .tab-sheen, :root[data-theme="starry"] .tab-sheen { opacity: .25; }
+:root[data-mode="dark"] .tab-lens, :root[data-theme="starry"] .tab-lens { background: radial-gradient(120% 120% at 30% 0%, rgba(255, 255, 255, .28), rgba(255, 255, 255, .1)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), 0 4px 14px rgba(0, 0, 0, .3); }
+:root[data-mode="dark"] .tab-add, :root[data-theme="starry"] .tab-add { box-shadow: 0 0 0 4px rgba(255, 255, 255, .12), 0 10px 22px var(--g-sh), inset 0 2px 0 rgba(255, 255, 255, .4); }
+@media (prefers-color-scheme: dark) {
+  :root[data-mode="auto"] #tabbar { background: linear-gradient(180deg, rgba(60, 54, 42, .55), rgba(30, 27, 21, .45)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .22), inset 0 0 12px rgba(255, 255, 255, .05), 0 14px 34px rgba(0, 0, 0, .45); }
+  :root[data-mode="auto"] #tabbar::after { background: linear-gradient(135deg, rgba(255, 255, 255, .45), rgba(255, 255, 255, .05) 40%, rgba(255, 255, 255, .25)); }
+  :root[data-mode="auto"] .tab-sheen { opacity: .25; }
+  :root[data-mode="auto"] .tab-lens { background: radial-gradient(120% 120% at 30% 0%, rgba(255, 255, 255, .28), rgba(255, 255, 255, .1)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), 0 4px 14px rgba(0, 0, 0, .3); }
+  :root[data-mode="auto"] .tab-add { box-shadow: 0 0 0 4px rgba(255, 255, 255, .12), 0 10px 22px var(--g-sh), inset 0 2px 0 rgba(255, 255, 255, .4); }
+}
+.sign-fab { bottom: calc(var(--safe-bottom) + 92px); }
+.cat-nudge { bottom: calc(var(--safe-bottom) + 92px); }
