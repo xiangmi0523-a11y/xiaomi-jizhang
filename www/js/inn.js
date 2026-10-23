@@ -136,9 +136,8 @@
   App.views.inn = { render: innRender };
 
   // 每次切到客栈 Tab 时重新随机猫咪站位
-  document.addEventListener('click', e => {
-    if (e.target.closest && e.target.closest('[data-act="tab"][data-t="inn"]')) { I.shuffle = true; setTimeout(() => I.sadNudge && I.sadNudge(), 900); }
-  }, true);
+  // （由 A.tab 在切到客栈前调用：点按、拖动玻璃泡切过来都会触发）
+  I.onEnter = () => { I.shuffle = true; setTimeout(() => I.sadNudge && I.sadNudge(), 900); };
 
   A.innSub = el => { I.sub = el.dataset.v; App.render(false); };
 
