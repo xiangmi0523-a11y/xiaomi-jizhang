@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: macos-15
+    runs-on: macos-15-intel   # arm64 机器排队太久时改用 Intel 机器打包
     steps:
       - uses: actions/checkout@v4
 
