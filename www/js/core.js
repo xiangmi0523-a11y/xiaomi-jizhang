@@ -334,5 +334,6 @@
     el.setAttribute('data-theme', App.THEMES[st.theme] ? st.theme : 'millet');
     el.setAttribute('data-mode', ['auto', 'light', 'dark'].includes(st.mode) ? st.mode : 'auto');
     App.native('mode', { value: App.THEMES[st.theme] && App.THEMES[st.theme].dark ? 'dark' : st.mode });
+    if (App.syncNativeBar) setTimeout(() => App.syncNativeBar(true), 0);
   };
 })();

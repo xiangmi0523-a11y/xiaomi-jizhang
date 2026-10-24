@@ -8,6 +8,7 @@ import UserNotifications
 
 final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigationDelegate, UIDocumentPickerDelegate {
     private var webView: WKWebView!
+    weak var tabHost: RootTabController?
     private var webBottom: NSLayoutConstraint!
     private var pageReady = false
     private let ioQueue = DispatchQueue(label: "xiaomi.io", qos: .utility)
@@ -150,6 +151,7 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
     /// 启动时把上次保存的账本文件交给网页（网页自己的 localStorage 丢失时用来恢复）
     private func bootstrapScript() -> String {
         var js = "window.__NATIVE_APP__ = true; window.__BIO__ = \(jsString(biometryName()));"
+        if NativeTabs.enabled { js += " window.__NATIVE_TABBAR__ = true;" }
         if let folder = backupFolderURL() {
             js += " window.__BACKUP_FOLDER__ = \(jsString(folder.lastPathComponent));"
         }
@@ -170,6 +172,11 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
             .replacingOccurrences(of: "\u{2028}", with: " ")
             .replacingOccurrences(of: "\u{2029}", with: " ")
         return "\"" + escaped + "\""
+    }
+
+    func runJS(_ code: String) {
+        guard pageReady else { return }
+        webView.evaluateJavaScript(code, completionHandler: nil)
     }
 
     private func callJS(_ code: String) {
@@ -383,6 +390,11 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
             if let name = body["filename"] as? String, let content = body["content"] as? String {
                 shareFile(name: name, content: content)
             }
+        case "tab":
+            if let t = body["t"] as? String { tabHost?.select(key: t) }
+        case "tabbar":
+            tabHost?.setBar(hidden: (body["hidden"] as? Bool) ?? false)
+            if let hex = body["accent"] as? String { tabHost?.setAccent(hex: hex, plus: body["plus"] as? String) }
         case "privacy":
             UserDefaults.standard.set((body["on"] as? Bool) ?? false, forKey: Self.privacyKey)
         case "receiptShot":
@@ -394,6 +406,7 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
             case "light": overrideUserInterfaceStyle = .light
             default: overrideUserInterfaceStyle = .unspecified
             }
+            tabHost?.overrideUserInterfaceStyle = overrideUserInterfaceStyle
         case "widget":
             if let text = body["data"] as? String { updateWidget(text) }
         case "chart":

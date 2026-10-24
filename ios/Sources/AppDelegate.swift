@@ -9,7 +9,8 @@ final class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationC
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         UNUserNotificationCenter.current().delegate = self
         let window = UIWindow(frame: UIScreen.main.bounds)
-        window.rootViewController = ViewController()
+        let web = ViewController()
+        window.rootViewController = NativeTabs.enabled ? RootTabController(web: web) : web
         window.makeKeyAndVisible()
         self.window = window
         if let url = launchOptions?[.url] as? URL, url.scheme == XMShared.urlScheme, url.host == "add" {

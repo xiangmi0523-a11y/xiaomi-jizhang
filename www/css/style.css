@@ -1524,3 +1524,65 @@ html, body { background: var(--bg); }
 
 .dragging .tab.on:not(.hover) { color: var(--sub); }
 .dragging .tab.on:not(.hover) .tf { fill: var(--tab-fill); }
+
+/* ===== v4.0 · iOS 26+ 用系统原生液态玻璃标签栏：网页底栏隐藏，内容给原生底栏留出位置 ===== */
+html.ntab #tabbar { display: none; }
+html.ntab #page { padding-bottom: calc(var(--safe-bottom) + 78px); }
+html.ntab .sign-fab, html.ntab .cat-nudge { bottom: calc(var(--safe-bottom) + 84px); }
+
+/* =====================================================================
+   v4.0 · CSS 玻璃底栏（按需求规格：纯 CSS 动效、多层阴影玻璃边、性能优先、贴合奶油主题、含安全区）
+   ===================================================================== */
+#tabbar, :root[data-mode="dark"] #tabbar, :root[data-theme="starry"] #tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; margin: 0;
+  /* 5. 安全区：高度 = 64px 图标区 + 底部小黑条（Home Indicator）区域，图标只放在上面 64px 里 */
+  height: calc(64px + var(--safe-bottom)); padding: 0 8px var(--safe-bottom);
+  border-radius: 26px 26px 0 0; isolation: isolate;
+  /* 4. 极低透明度的奶油渐变，不加饱和杂色 */
+  background: linear-gradient(180deg, rgba(255, 253, 248, .58) 0%, rgba(252, 246, 230, .70) 100%);
+  /* 3. 模糊和饱和度控制在规格内 */
+  -webkit-backdrop-filter: blur(12px) saturate(130%); backdrop-filter: blur(12px) saturate(130%);
+  /* 2. 玻璃边：外侧极弱的柔和阴影让它浮起来 + 内侧 1px 细亮边模拟折射高光 */
+  box-shadow: 0 -8px 24px rgba(120, 85, 30, .06), 0 -1px 0 rgba(150, 110, 40, .07), inset 0 1px 2px rgba(255, 255, 255, .7);
+  will-change: transform; transform: translateZ(0);
+  transition: none;
+}
+#tabbar::after { display: none; }
+:root[data-mode="dark"] #tabbar { background: linear-gradient(180deg, rgba(42, 37, 28, .55), rgba(28, 25, 19, .68)); box-shadow: 0 -8px 24px rgba(0, 0, 0, .25), inset 0 1px 2px rgba(255, 255, 255, .14); }
+:root[data-theme="starry"] #tabbar { background: linear-gradient(180deg, rgba(45, 48, 100, .55), rgba(28, 30, 66, .68)); box-shadow: 0 -8px 24px rgba(0, 0, 0, .25), inset 0 1px 2px rgba(255, 255, 255, .16); }
+@media (prefers-color-scheme: dark) { :root[data-mode="auto"]:not([data-theme="starry"]) #tabbar { background: linear-gradient(180deg, rgba(42, 37, 28, .55), rgba(28, 25, 19, .68)); box-shadow: 0 -8px 24px rgba(0, 0, 0, .25), inset 0 1px 2px rgba(255, 255, 255, .14); } }
+
+/* 1. 内部高光：极微弱的斜向亮带，用 transform 缓慢流动（只走合成层，不重绘） */
+.tab-sheen, :root[data-mode="dark"] .tab-sheen, :root[data-theme="starry"] .tab-sheen { position: absolute; inset: 0; z-index: 0; border-radius: inherit; overflow: hidden; pointer-events: none; opacity: 1; background: linear-gradient(180deg, rgba(255, 255, 255, .35), rgba(255, 255, 255, 0) 38%); }
+.tab-sheen::before { content: ''; position: absolute; top: 0; bottom: 0; left: -100%; width: 200%;
+  background: linear-gradient(100deg, transparent 38%, rgba(255, 255, 255, .20) 47%, rgba(255, 255, 255, .06) 53%, transparent 62%);
+  will-change: transform; animation: glassFlow 9s ease-in-out infinite alternate; }
+@keyframes glassFlow { from { transform: translateX(-12%); } to { transform: translateX(50%); } }
+:root[data-mode="dark"] .tab-sheen::before, :root[data-theme="starry"] .tab-sheen::before { opacity: .45; }
+
+.tab-row { height: 64px; }
+.tab { height: 64px; }
+/* 图标用 drop-shadow 提升清晰度 */
+.tab svg { filter: drop-shadow(0 1px 1px rgba(120, 80, 20, .18)); }
+:root[data-mode="dark"] .tab svg { filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .5)); }
+/* 选中格：一块很淡的玻璃底，换页时用 CSS 过渡滑过去（只在切换时设一次位置，没有实时计算） */
+.tab-lens, :root[data-mode="dark"] .tab-lens, :root[data-theme="starry"] .tab-lens { top: 8px; bottom: 8px; border-radius: 22px; background: linear-gradient(180deg, rgba(255, 255, 255, .55), rgba(255, 255, 255, .22)); box-shadow: inset 0 1px 2px rgba(255, 255, 255, .7), 0 2px 8px rgba(120, 85, 30, .08); will-change: transform; transition: transform .45s cubic-bezier(.34, 1.4, .5, 1), width .35s ease; }
+:root[data-mode="dark"] .tab-lens { background: linear-gradient(180deg, rgba(255, 255, 255, .14), rgba(255, 255, 255, .05)); box-shadow: inset 0 1px 2px rgba(255, 255, 255, .18); }
+
+/* 中间悬浮的 + ：按下时 Q 弹挤压，松手时用回弹曲线弹回 */
+.tab-add, :root[data-theme] .tab-add {
+  margin: -28px 6px 0; will-change: transform;
+  box-shadow: 0 8px 18px var(--g-sh), 0 0 0 4px rgba(255, 255, 255, .55), inset 0 1px 2px rgba(255, 255, 255, .7);
+  transition: transform .5s cubic-bezier(.34, 1.85, .5, 1);
+}
+.tab-add:active, :root[data-theme] .tab-add:active { transform: scale(.86, .80) translateY(2px); transition: transform .12s cubic-bezier(.3, 0, .6, 1); }
+.tab-add svg { filter: drop-shadow(0 1px 1px rgba(120, 70, 0, .3)); }
+
+html:not(.ntab) #page { padding-bottom: calc(var(--safe-bottom) + 86px); }
+html:not(.ntab) .sign-fab, html:not(.ntab) .cat-nudge { bottom: calc(var(--safe-bottom) + 84px); }
+
+/* 3. 系统设置了「减弱动态效果」时自动关闭动画 */
+@media (prefers-reduced-motion: reduce) {
+  .tab-sheen::before { animation: none; }
+  .tab-lens, .tab-add, .tab svg, #page.slide-l > *, #page.slide-r > * { transition: none !important; animation: none !important; }
+}

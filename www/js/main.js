@@ -5,6 +5,36 @@
   const A = App.A;
 
   /* ---------- 底部导航 ---------- */
+  // iOS 26 及以上用系统原生的液态玻璃标签栏（由原生层画），网页里的底栏只在旧系统上用
+  const NTAB = !!window.__NATIVE_TABBAR__;   // 系统支持原生液态玻璃标签栏
+  App.ntabAvailable = NTAB;
+  // 用户在「外观」里选的底栏样式：native = 系统液态玻璃，css = 网页玻璃
+  App.useNativeBar = () => NTAB && (!App.S || App.S.settings.tabStyle !== 'css');
+  App.applyTabStyle = () => {
+    document.documentElement.classList.toggle('ntab', App.useNativeBar());
+    if (App.syncNativeBar) App.syncNativeBar(true);
+    requestAnimationFrame(() => moveLens(false));
+  };
+  App.nativeTab = key => { if (key !== App.tab && !(key === 'mine' && App.tab === 'assets')) A.tab({ dataset: { t: key } }); else if (key === 'mine' && App.tab === 'assets') A.tab({ dataset: { t: 'mine' } }); };
+  // 网页里有全屏内容（记账面板、弹层、密码锁、启动动画…）时让原生底栏收起来，并把主题色告诉它
+  let barState = '';
+  App.syncNativeBar = force => {
+    if (!NTAB) return;
+    const lock = document.getElementById('lock');
+    const covered = !App.useNativeBar() || !!(document.getElementById('splash') || (lock && !lock.hidden) || App.sheets.length ||
+      document.querySelector('.dlg-wrap, .sign-wrap, .rc-wrap, .gacha, .wn'));
+    const cs = getComputedStyle(document.documentElement);
+    const accent = cs.getPropertyValue('--accent-strong').trim(), plus = cs.getPropertyValue('--gb').trim();
+    const key = covered + accent + plus;
+    if (key === barState && !force) return;
+    barState = key;
+    App.native('tabbar', { hidden: covered, accent, plus });
+  };
+  if (NTAB) {
+    let raf = 0;
+    const kick = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; App.syncNativeBar(); }); };
+    new MutationObserver(kick).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden'] });
+  }
   const TABS = [['home', '明细'], ['stats', '统计'], ['add', ''], ['inn', '客栈'], ['mine', '我的']];
   // 液态玻璃底栏：按钮只在切换页面时重画；选中格下面有一个会弹性滑动的玻璃泡
   let lensReady = false;
@@ -25,6 +55,7 @@
       row = bar.querySelector('.tab-row');
     }
     const cur = App.tab === 'assets' ? 'mine' : App.tab;
+    if (NTAB && App.lastNativeTab !== cur) { App.lastNativeTab = cur; App.native('tab', { t: cur }); }
     if (row.dataset.k === cur) return;
     const jelly = !!row.dataset.k;
     row.dataset.k = cur;
@@ -35,73 +66,7 @@
   };
   window.addEventListener('resize', () => moveLens(false));
 
-  /* ---------- 按住底栏左右滑：玻璃泡跟着手指走（像 QQ 音乐 / iOS 26），松手吸附到最近一格 ---------- */
   const TAB_ORDER = ['home', 'stats', 'inn', 'mine'];
-  App.tabDir = 0;
-  const setupBarDrag = () => {
-    const bar = document.getElementById('tabbar');
-    let drag = null, swallowClick = false;
-    const tabs = () => Array.from(bar.querySelectorAll('.tab'));
-    const nearest = x => {
-      let best = null, bd = 1e9;
-      tabs().forEach(t => { const r = t.getBoundingClientRect(), d = Math.abs(r.left + r.width / 2 - x); if (d < bd) { bd = d; best = t; } });
-      return best;
-    };
-    const follow = (x, vx) => {
-      const lens = bar.querySelector('.tab-lens'), br = bar.getBoundingClientRect();
-      const w = lens.offsetWidth, nx = Math.max(-6, Math.min(br.width - w + 6, x - br.left - w / 2));
-      const st = Math.min(.35, Math.abs(vx) * .035);   // 滑得越快拉得越长
-      lens.style.transform = `translateX(${nx}px)`;
-      lens.style.scale = `${(1.12 + st).toFixed(3)} ${(1.12 - st * .6).toFixed(3)}`;
-      const t = nearest(x);
-      tabs().forEach(el => el.classList.toggle('hover', el === t));
-    };
-    bar.addEventListener('pointerdown', e => {
-      if (e.target.closest('.tab-add') || !e.target.closest('.tab')) return;
-      const lens = bar.querySelector('.tab-lens'); if (!lens) return;
-      drag = { id: e.pointerId, x0: e.clientX, x: e.clientX, t: e.timeStamp, moved: false };
-      bar.classList.add('dragging'); lens.classList.add('press');
-      try { bar.setPointerCapture(e.pointerId); } catch (er) { /* ignore */ }
-      follow(e.clientX, 0);
-    });
-    bar.addEventListener('pointermove', e => {
-      if (!drag || e.pointerId !== drag.id) return;
-      const dt = Math.max(8, e.timeStamp - drag.t), vx = (e.clientX - drag.x) / dt * 16;
-      if (Math.abs(e.clientX - drag.x0) > 8) drag.moved = true;
-      drag.x = e.clientX; drag.t = e.timeStamp;
-      follow(e.clientX, vx);
-    });
-    const end = e => {
-      if (!drag || (e && e.pointerId !== drag.id)) return;
-      const moved = drag.moved, t = nearest(drag.x);
-      drag = null;
-      const lens = bar.querySelector('.tab-lens');
-      bar.classList.remove('dragging'); lens.classList.remove('press'); lens.style.scale = '';
-      tabs().forEach(el => el.classList.remove('hover'));
-      // 拖动或点按都在这里处理（按下时捕获了指针，浏览器补发的点击可能落不到按钮上），随后吞掉那次点击
-      swallowClick = true; setTimeout(() => { swallowClick = false; }, 400);
-      const cur = App.tab === 'assets' ? 'mine' : App.tab;
-      if (t && (t.dataset.t !== cur || (!moved && App.tab === 'assets'))) A.tab(t);
-      else moveLens(true);
-    };
-    bar.addEventListener('pointerup', end);
-    bar.addEventListener('pointercancel', end);
-    // 只吞掉「标签按钮」上的那次补发点击；中间的加号永远照常响应
-    bar.addEventListener('click', e => { if (swallowClick && !e.target.closest('.tab-add')) { e.stopPropagation(); e.preventDefault(); swallowClick = false; } }, true);
-  };
-
-  // 往下滑时底栏缩小，往上滑或回到顶部时恢复（和 iOS 26 一样）
-  const setupBarScroll = () => {
-    const page = document.getElementById('page'), bar = document.getElementById('tabbar');
-    let last = 0;
-    page.addEventListener('scroll', () => {
-      const y = page.scrollTop;
-      if (y > last + 6 && y > 90) bar.classList.add('mini');
-      else if (y < last - 6 || y < 40) bar.classList.remove('mini');
-      last = y;
-    }, { passive: true });
-    bar.addEventListener('transitionend', e => { if (e.propertyName === 'height') moveLens(false); });
-  };
 
   App.render = keep => {
     const page = document.getElementById('page');
@@ -243,12 +208,11 @@
   const init = () => {
     startSplash();
     App.load();
+    App.applyTabStyle();
     // v3.1：界面统一成设计稿的奶油黄配色，升级时切回一次（之后想换主题可以在「外观」里换）
     if (!App.S.settings.ui31) { App.S.settings.ui31 = 1; App.S.settings.theme = 'millet'; }
     App.applyTheme();
     setupViewport();
-    setupBarScroll();
-    setupBarDrag();
     if (App.S.settings.pin) App.lockNow();
     App.runRecurring();
     App.mood.decay(); App.flush();
