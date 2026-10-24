@@ -20,6 +20,7 @@
     key: mi('<circle class="tf" cx="8" cy="15" r="4.5"/><circle cx="8" cy="15" r="4.5"/><path d="M11.2 11.8L20 3M16.5 6.5l2.5 2.5M14.5 8.5l2 2"/>'),
     unlock: mi('<rect class="tf" x="4.5" y="10.5" width="15" height="10.5" rx="3"/><rect x="4.5" y="10.5" width="15" height="10.5" rx="3"/><path d="M8 10.5V8a4 4 0 017.6-1.8"/><circle cx="12" cy="15.8" r="1.4" fill="currentColor"/>'),
     face: mi('<path d="M4 8V6a2 2 0 012-2h2M16 4h2a2 2 0 012 2v2M20 16v2a2 2 0 01-2 2h-2M8 20H6a2 2 0 01-2-2v-2"/><circle class="tf" cx="12" cy="12" r="5.5"/><path d="M10 11v.5M14 11v.5M10.4 14.2c.9.7 2.3.7 3.2 0"/>'),
+    cloud: mi('<path class="tf" d="M7 18.5a4.5 4.5 0 01-.6-9A6 6 0 0118 8.6a4.9 4.9 0 01-.6 9.9z"/><path d="M7 18.5a4.5 4.5 0 01-.6-9A6 6 0 0118 8.6a4.9 4.9 0 01-.6 9.9z"/><path d="M9.2 13.6a2.9 2.9 0 015-1.6M14.8 14.4a2.9 2.9 0 01-5 1.6"/><path d="M14.4 10.8v1.4H13M9.6 17.2v-1.4H11"/>'),
     exportI: mi('<path class="tf" d="M5 11v7.5A2.5 2.5 0 007.5 21h9a2.5 2.5 0 002.5-2.5V11z"/><path d="M5 11v7.5A2.5 2.5 0 007.5 21h9a2.5 2.5 0 002.5-2.5V11"/><path d="M12 15V3.5M8.4 7L12 3.4 15.6 7"/>'),
     importI: mi('<path class="tf" d="M5 11v7.5A2.5 2.5 0 007.5 21h9a2.5 2.5 0 002.5-2.5V11z"/><path d="M5 11v7.5A2.5 2.5 0 007.5 21h9a2.5 2.5 0 002.5-2.5V11"/><path d="M12 3.5V15M8.4 11.4L12 15l3.6-3.6"/>'),
     table: mi('<rect class="tf" x="3.5" y="4.5" width="17" height="15" rx="2.5"/><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><path d="M3.5 9.5h17M3.5 14.5h17M9.5 9.5v10"/>'),
@@ -67,9 +68,10 @@
           ${mrow('openLook', 'look', '外观', (App.THEMES[st.theme] || {}).n + ' · ' + ({ auto: '跟随系统', light: '浅色', dark: '深色' }[st.mode]))}
           ${mrow('openSecurity', 'lock', '密码锁', st.pin ? '已开启' : '已关闭')}
           ${mrow('openRemind', 'remind', '记账提醒', (st.remind && st.remind.on) ? '每天 ' + st.remind.time : '已关闭')}
+          ${mrow('openCloud', 'cloud', '云端同步', App.cloud.status())}
           ${mrow('openData', 'data', '数据与备份', App.backup.folder() ? '自动备份中' : '导出 · 导入')}
         </div>
-        <div class="card list menu">${mrow('openAbout', 'about', '关于晓米记账', 'v4.0')}</div>
+        <div class="card list menu">${mrow('openAbout', 'about', '关于晓米记账', 'v4.1')}</div>
       </div>`;
   };
   App.views.mine = { render: mineRender };
@@ -367,13 +369,16 @@
   A.dataClear = async () => {
     if (!await UI.confirm({ title: '清空所有数据？', msg: '所有记录、账户、预算都会被删除，无法恢复。', ok: '继续', danger: true })) return;
     if (!await UI.confirm({ title: '再确认一次', msg: '真的要全部清空吗？建议先导出备份。', ok: '清空', danger: true })) return;
-    UI.closeAll(); App.replaceState(null); UI.toast('已清空');
+    // 登录着云端时先退出：不然下次同步又会从云端把数据拉回来
+    const cloudOn = App.supabase && App.supabase.user();
+    if (cloudOn) await App.supabase.signOut();
+    UI.closeAll(); App.replaceState(null); UI.toast(cloudOn ? '已清空本机数据并退出云端登录（云端的数据还在，重新登录会恢复）' : '已清空', cloudOn ? 4200 : 1800);
   };
 
   A.openAbout = () => {
     UI.sheet({
       title: '关于', cls: 'compact',
-      render: () => `<div class="about"><div class="avatar big">${App.catArt.svg('n1', { head: true, w: 70, mood: 'happy' })}</div><h3>晓米记账</h3><p class="muted">v4.0 · 给自己用的小账本</p>
+      render: () => `<div class="about"><div class="avatar big">${App.catArt.svg('n1', { head: true, w: 70, mood: 'happy' })}</div><h3>晓米记账</h3><p class="muted">v4.1 · 给自己用的小账本</p>
         <p>所有数据只存在这台手机里，没有账号、没有联网、没有广告。</p>
         <p class="muted">记一笔 · 明细日历 · 统计图表 · 资产账户 · 预算 · 周期记账 · 备份导出</p></div>`
     });

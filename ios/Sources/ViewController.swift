@@ -390,6 +390,8 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
             if let name = body["filename"] as? String, let content = body["content"] as? String {
                 shareFile(name: name, content: content)
             }
+        case "http":
+            if let id = body["id"] as? String, let urlStr = body["url"] as? String { httpRequest(id: id, urlStr: urlStr, body: body) }
         case "tab":
             if let t = body["t"] as? String { tabHost?.select(key: t) }
         case "tabbar":
@@ -488,6 +490,38 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
         sheet.popoverPresentationController?.sourceView = view
         sheet.popoverPresentationController?.sourceRect = CGRect(x: view.bounds.midX, y: view.bounds.midY, width: 0, height: 0)
         present(sheet, animated: true)
+    }
+
+    // MARK: - 云同步：网页的网络请求交给 URLSession 发（不受网页跨域限制），结果用 base64 交回网页
+
+    private lazy var httpSession: URLSession = {
+        let cfg = URLSessionConfiguration.default
+        cfg.timeoutIntervalForRequest = 30
+        cfg.waitsForConnectivity = false
+        return URLSession(configuration: cfg)
+    }()
+
+    private func httpRequest(id: String, urlStr: String, body: [String: Any]) {
+        guard let url = URL(string: urlStr), url.scheme == "https" else {
+            callJS("App.http && App.http.done(\(jsString(id)), 0, '', '网址不正确')")
+            return
+        }
+        var req = URLRequest(url: url)
+        req.httpMethod = (body["method"] as? String) ?? "GET"
+        if let headers = body["headers"] as? [String: Any] {
+            for (k, v) in headers { req.setValue("\(v)", forHTTPHeaderField: k) }
+        }
+        if let text = body["body"] as? String { req.httpBody = Data(text.utf8) }
+        let bg = BGTask()
+        bg.id = UIApplication.shared.beginBackgroundTask(withName: "xm-http") { bg.end() }
+        httpSession.dataTask(with: req) { [weak self] data, resp, err in
+            defer { DispatchQueue.main.async { bg.end() } }
+            guard let self = self else { return }
+            let status = (resp as? HTTPURLResponse)?.statusCode ?? 0
+            let b64 = (data ?? Data()).base64EncodedString()
+            let msg = err.map { self.jsString($0.localizedDescription) } ?? "''"
+            self.callJS("App.http && App.http.done(\(self.jsString(id)), \(status), '\(b64)', \(msg))")
+        }.resume()
     }
 
     // MARK: - 每日小票：截取网页里的小票区域，弹出分享面板（可存到相册）
