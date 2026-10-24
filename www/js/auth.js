@@ -10,8 +10,9 @@
   const G = App.authGate = { el: null };
   const SB = () => App.supabase;
 
-  // 只在 App 里启用（浏览器里预览 / 自动化测试时不拦截；测试时可以用 __XM_FORCE_GATE__ 强制打开）
-  G.enabled = () => location.protocol === 'xiaomi:' || !!window.__XM_FORCE_GATE__;
+  // App 里和线上网页版都要先登录；只有本机调试（localhost）时不拦截，测试时可以用 __XM_FORCE_GATE__ 强制打开
+  G.enabled = () => location.protocol === 'xiaomi:' || !!window.__XM_FORCE_GATE__ ||
+    (location.protocol === 'https:' && !/^(localhost|127\.0\.0\.1)$/.test(location.hostname));
   G.needed = () => G.enabled() && !SB().user();
 
   let mode = 'in', busy = false, email = '', showPw = false, note = '';

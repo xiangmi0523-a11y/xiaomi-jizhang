@@ -173,6 +173,8 @@
   App.normalize = normalize;
 
   /* ---------- 存储（原生文件 + localStorage 双保险） ---------- */
+  // 电脑大屏上整个 App 居中成手机宽度（body 带 transform），飞金币这类 fixed 动画要减掉左边的偏移
+  App.ox = () => { try { const b = document.body; return getComputedStyle(b).transform !== 'none' ? b.getBoundingClientRect().left : 0; } catch (e) { return 0; } };
   App.native = (type, payload) => {
     try {
       const h = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.native;

@@ -154,7 +154,7 @@
   // 保存图片：把小票复制一份平铺到纯色背景上、缩放到一屏内，再让原生层截图并弹出分享面板（可存到相册）
   let box = null;
   RC.save = () => {
-    if (!window.__NATIVE_APP__) { UI.toast('需要在 iPhone 上的晓米记账 App 里保存图片'); return; }
+    if (!window.__NATIVE_APP__) { UI.toast('网页版请直接截屏保存小票（iPhone：侧边键 + 音量上键）', 3200); return; }
     if (box) return;
     const src = wrap.querySelector('.rc-shot');
     wrap.classList.remove('printing');

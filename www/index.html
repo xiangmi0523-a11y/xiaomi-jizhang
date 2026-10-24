@@ -4,7 +4,24 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
+<meta name="format-detection" content="telephone=no">
+<meta name="description" content="晓米记账 · 每一笔，都有猫咪陪你记">
 <title>晓米记账</title>
+<!-- PWA：iOS Safari「添加到主屏幕」/ 安卓 · 电脑 Chrome「安装应用」 -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#FCF5E4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#15130F" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="晓米记账">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="application-name" content="晓米记账">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152.png">
+<link rel="apple-touch-icon" sizes="167x167" href="icons/icon-167.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="icons/icon-16.png">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -58,5 +75,6 @@
 <script src="js/auth.js"></script>
 <script src="js/receipt.js"></script>
 <script src="js/main.js"></script>
+<script src="js/pwa.js"></script>
 </body>
 </html>

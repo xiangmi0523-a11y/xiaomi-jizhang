@@ -43,7 +43,7 @@
     for (let i = 0; i < count; i++) {
       const el = document.createElement('span');
       el.className = 'coin-fly gcoin';
-      el.style.left = from.x + 'px'; el.style.top = from.y + 'px';
+      el.style.left = (from.x - App.ox()) + 'px'; el.style.top = from.y + 'px';
       document.body.appendChild(el);
       const spread = (Math.random() - 0.5) * 90;
       const dx = tx - from.x, dy = ty - from.y;

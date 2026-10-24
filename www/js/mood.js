@@ -105,7 +105,7 @@
     const el = document.createElement('span');
     el.className = 'can-fly';
     el.innerHTML = M.canSVG(34);
-    el.style.left = from.x + 'px'; el.style.top = from.y + 'px';
+    el.style.left = (from.x - App.ox()) + 'px'; el.style.top = from.y + 'px';
     document.body.appendChild(el);
     const dx = to.x - from.x, dy = to.y - from.y;
     let fin = false;
