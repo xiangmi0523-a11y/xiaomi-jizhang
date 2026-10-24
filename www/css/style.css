@@ -1092,7 +1092,7 @@ b.r, .r { color: var(--danger); }
 .rc-peek-head svg { animation: rcNod 3.6s ease-in-out 3s infinite; transform-origin: 50% 90%; }
 @keyframes rcNod { 0%, 70%, 100% { transform: rotate(0); } 80% { transform: rotate(-7deg); } 90% { transform: rotate(4deg); } }
 
-.rc-actions { display: flex; gap: 10px; padding: 10px 16px calc(env(safe-area-inset-bottom, 0px) + 12px); }
+.rc-actions { display: flex; gap: 10px; padding: 10px 16px calc(var(--safe-bottom) + 12px); }
 .rc-actions button { flex: 1; height: 46px; border-radius:23px; font-size: 15px; font-weight: 800; background: rgba(255,255,255,.9); color: #3B2A00; }
 .rc-actions .ok { background: var(--accent); color: var(--accent-ink); }
 
@@ -1340,7 +1340,7 @@ html, body { background: var(--bg); }
 @keyframes spChar { from { transform: translateY(24px) scale(.4); opacity: 0; } }
 .sp-sub { margin-top: 6px; font-size: 14px; font-weight: 700; letter-spacing: 2px; color: #A88B6B; animation: spSub .5s ease-out 1.25s both; }
 @keyframes spSub { from { transform: translateY(8px); opacity: 0; } }
-.sp-paws { position: absolute; left: 0; right: 0; bottom: calc(env(safe-area-inset-bottom, 0px) + 9vh); height: 30px; }
+.sp-paws { position: absolute; left: 0; right: 0; bottom: calc(var(--safe-bottom) + 9vh); height: 30px; }
 .sp-paws i { position: absolute; width: 20px; height: 20px; opacity: 0; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='%23F2C46A'%3E%3Cellipse cx='12' cy='15.6' rx='5' ry='4.2'/%3E%3Cellipse cx='5.6' cy='10.6' rx='2.1' ry='2.6'/%3E%3Cellipse cx='9.6' cy='6.6' rx='2.2' ry='2.8'/%3E%3Cellipse cx='14.4' cy='6.6' rx='2.2' ry='2.8'/%3E%3Cellipse cx='18.4' cy='10.6' rx='2.1' ry='2.6'/%3E%3C/g%3E%3C/svg%3E") center / contain no-repeat; animation: spStep 1.2s ease-out both; }
 .sp-paws i:nth-child(1) { left: 14%; top: 10px; transform: rotate(80deg); animation-delay: .9s; }
 .sp-paws i:nth-child(2) { left: 26%; top: 0; transform: rotate(100deg); animation-delay: 1.02s; }

@@ -71,7 +71,7 @@
           ${mrow('openCloud', 'cloud', '云端同步', App.cloud.status())}
           ${mrow('openData', 'data', '数据与备份', App.backup.folder() ? '自动备份中' : '导出 · 导入')}
         </div>
-        <div class="card list menu">${mrow('openAbout', 'about', '关于晓米记账', 'v4.1')}</div>
+        <div class="card list menu">${mrow('openAbout', 'about', '关于晓米记账', 'v4.2')}</div>
       </div>`;
   };
   App.views.mine = { render: mineRender };
@@ -282,6 +282,8 @@
           <p class="hint">带 🔒 的限定主题可以在「客栈 → 主题」用金币解锁</p>
           <div class="card-title pad-t">深浅模式</div>
           <div class="seg wide">${[['auto', '跟随系统'], ['light', '浅色'], ['dark', '深色']].map(m => `<button data-lk="mode" data-v="${m[0]}" class="${st.mode === m[0] ? 'on' : ''}">${m[1]}</button>`).join('')}</div>
+          <div class="card-title pad-t">界面大小</div>
+          <div class="seg wide">${[['s', '小'], ['m', '标准'], ['l', '大']].map(z => `<button data-lk="zoom" data-v="${z[0]}" class="${(st.uiZoom || 'm') === z[0] ? 'on' : ''}">${z[1]}</button>`).join('')}</div>
           ${App.ntabAvailable ? `<div class="card-title pad-t">底部导航栏</div>
           <div class="seg wide"><button data-lk="tabstyle" data-v="native" class="${st.tabStyle !== 'css' ? 'on' : ''}">系统液态玻璃</button><button data-lk="tabstyle" data-v="css" class="${st.tabStyle === 'css' ? 'on' : ''}">CSS 玻璃</button></div>` : ''}
           <div class="card-title pad-t">每周从哪天开始</div>
@@ -294,6 +296,7 @@
           const st = S.settings, v = b.dataset.v;
           if (b.dataset.lk === 'theme') { if (!App.themes.owned(v)) { UI.toast('这是限定主题，去「客栈 → 主题」用金币解锁吧', 2200); return; } st.theme = v; }
           else if (b.dataset.lk === 'mode') st.mode = v;
+          else if (b.dataset.lk === 'zoom') { st.uiZoom = v; App.changed(); App.applyZoom(); h.update(); return; }
           else if (b.dataset.lk === 'tabstyle') { st.tabStyle = v; App.changed(); App.applyTabStyle(); h.update(); UI.toast(v === 'css' ? '已换成 CSS 玻璃底栏' : '已换成系统液态玻璃底栏'); return; }
           else st.weekStart = +v;
           App.applyTheme(); App.changed(); h.update();
@@ -378,7 +381,7 @@
   A.openAbout = () => {
     UI.sheet({
       title: '关于', cls: 'compact',
-      render: () => `<div class="about"><div class="avatar big">${App.catArt.svg('n1', { head: true, w: 70, mood: 'happy' })}</div><h3>晓米记账</h3><p class="muted">v4.1 · 给自己用的小账本</p>
+      render: () => `<div class="about"><div class="avatar big">${App.catArt.svg('n1', { head: true, w: 70, mood: 'happy' })}</div><h3>晓米记账</h3><p class="muted">v4.2 · 给自己用的小账本</p>
         <p>所有数据只存在这台手机里，没有账号、没有联网、没有广告。</p>
         <p class="muted">记一笔 · 明细日历 · 统计图表 · 资产账户 · 预算 · 周期记账 · 备份导出</p></div>`
     });

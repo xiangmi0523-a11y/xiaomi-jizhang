@@ -74,9 +74,20 @@ final class RootTabController: UITabBarController, UITabBarControllerDelegate {
     /// 中间「记一笔」用主题色的实心加号，保持原色不被标签栏着色
     private func refreshPlusIcon() {
         guard let vcs = viewControllers, vcs.count > 2 else { return }
-        let cfg = UIImage.SymbolConfiguration(pointSize: 30, weight: .bold)
-            .applying(UIImage.SymbolConfiguration(paletteColors: [.white, plusColor]))
-        let img = UIImage(systemName: "plus.circle.fill", withConfiguration: cfg)?.withRenderingMode(.alwaysOriginal)
+        // 自己画成位图：主题色圆底 + 白色加号，标签栏不会再把它染成别的颜色
+        let size = CGSize(width: 34, height: 34)
+        let color = plusColor
+        let img = UIGraphicsImageRenderer(size: size).image { ctx in
+            let c = ctx.cgContext
+            color.setFill()
+            c.fillEllipse(in: CGRect(origin: .zero, size: size))
+            UIColor.white.setStroke()
+            c.setLineWidth(3.4)
+            c.setLineCap(.round)
+            c.move(to: CGPoint(x: 17, y: 9.5)); c.addLine(to: CGPoint(x: 17, y: 24.5))
+            c.move(to: CGPoint(x: 9.5, y: 17)); c.addLine(to: CGPoint(x: 24.5, y: 17))
+            c.strokePath()
+        }.withRenderingMode(.alwaysOriginal)
         let item = vcs[2].tabBarItem
         item?.image = img
         item?.selectedImage = img

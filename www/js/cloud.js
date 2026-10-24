@@ -174,7 +174,7 @@
   const keyOf = (t, row) => row[t.key];
 
   // 其余设置的整体快照（不含只属于这台手机的：密码锁、面容 ID、备份文件夹、提醒、底栏样式…）
-  const LOCAL_ONLY = ['pin', 'bio', 'backup', 'remind', 'tabStyle', 'lastAcc', 'ui31', 'rcSkin'];
+  const LOCAL_ONLY = ['pin', 'bio', 'backup', 'remind', 'tabStyle', 'lastAcc', 'ui31', 'rcSkin', 'uiZoom'];
   const stateOut = () => {
     const S = App.S, g = Object.assign({}, S.game); delete g.cats;
     const settings = pick(S.settings, LOCAL_ONLY);

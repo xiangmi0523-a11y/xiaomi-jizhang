@@ -73,6 +73,8 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
             web.trailingAnchor.constraint(equalTo: view.trailingAnchor)
         ])
         webView = web
+        let savedZoom = UserDefaults.standard.object(forKey: Self.zoomKey) as? Double ?? 0.9
+        web.pageZoom = CGFloat(savedZoom)
 
         NotificationCenter.default.addObserver(self, selector: #selector(handleQuickAdd),
                                                name: .xmQuickAdd, object: nil)
@@ -374,6 +376,8 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         pageReady = true
+        lastSafe = ""
+        pushSafeArea()
         // 等网页初始化完再弹记账面板
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in self?.handleQuickAdd() }
     }
@@ -397,11 +401,14 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
         case "tabbar":
             tabHost?.setBar(hidden: (body["hidden"] as? Bool) ?? false)
             if let hex = body["accent"] as? String { tabHost?.setAccent(hex: hex, plus: body["plus"] as? String) }
+        case "zoom":
+            if let v = body["value"] as? Double { setZoom(v) }
         case "privacy":
             UserDefaults.standard.set((body["on"] as? Bool) ?? false, forKey: Self.privacyKey)
         case "receiptShot":
             let num = { (k: String) -> CGFloat in CGFloat((body[k] as? NSNumber)?.doubleValue ?? 0) }
-            receiptShot(CGRect(x: num("x"), y: num("y"), width: num("w"), height: num("h")))
+            let z = webView.pageZoom   // 网页坐标是 CSS 像素，缩放后要换算成屏幕点
+            receiptShot(CGRect(x: num("x") * z, y: num("y") * z, width: num("w") * z, height: num("h") * z))
         case "mode":
             switch body["value"] as? String {
             case "dark": overrideUserInterfaceStyle = .dark
@@ -522,6 +529,41 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
             let msg = err.map { self.jsString($0.localizedDescription) } ?? "''"
             self.callJS("App.http && App.http.done(\(self.jsString(id)), \(status), '\(b64)', \(msg))")
         }.resume()
+    }
+
+    // MARK: - 安全区 + 界面缩放
+    // 用 Xcode 26 打包后，网页里的 env(safe-area-inset-*) 可能拿不到真实值（顶部会被状态栏挡住、点不到），
+    // 所以由原生层把刘海/灵动岛和底部小黑条的真实高度直接写进网页的 CSS 变量。
+    private static let zoomKey = "pageZoom"
+    private var lastSafe = ""
+
+    private func pushSafeArea() {
+        guard pageReady else { return }
+        let ins = view.window?.safeAreaInsets ?? view.safeAreaInsets
+        let z = max(0.5, webView.pageZoom)
+        let js = String(format: "document.documentElement.style.setProperty('--safe-top','%.1fpx');document.documentElement.style.setProperty('--safe-bottom','%.1fpx');window.App&&App.onSafeArea&&App.onSafeArea();", ins.top / z, ins.bottom / z)
+        guard js != lastSafe else { return }
+        lastSafe = js
+        webView.evaluateJavaScript(js, completionHandler: nil)
+    }
+
+    override func viewSafeAreaInsetsDidChange() {
+        super.viewSafeAreaInsetsDidChange()
+        pushSafeArea()
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        pushSafeArea()
+    }
+
+    private func setZoom(_ v: Double) {
+        let z = CGFloat(min(1.1, max(0.75, v)))
+        UserDefaults.standard.set(Double(z), forKey: Self.zoomKey)
+        guard abs(webView.pageZoom - z) > 0.001 else { return }
+        webView.pageZoom = z
+        lastSafe = ""
+        pushSafeArea()
     }
 
     // MARK: - 每日小票：截取网页里的小票区域，弹出分享面板（可存到相册）
