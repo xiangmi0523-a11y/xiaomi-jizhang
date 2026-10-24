@@ -8,13 +8,10 @@
   // iOS 26 及以上用系统原生的液态玻璃标签栏（由原生层画），网页里的底栏只在旧系统上用
   const NTAB = !!window.__NATIVE_TABBAR__;   // 系统支持原生液态玻璃标签栏
   App.ntabAvailable = NTAB;
-  // 用户在「外观」里选的底栏样式：native = 系统液态玻璃，css = 网页玻璃
-  App.useNativeBar = () => NTAB && (!App.S || App.S.settings.tabStyle !== 'css');
+  // 系统支持就用原生液态玻璃底栏（旧系统自动用网页底栏）
+  App.useNativeBar = () => NTAB;
   // 原生层更新了安全区高度（刘海、底部小黑条）后重新对齐底栏
   App.onSafeArea = () => { try { moveLens(false); } catch (e) { /* ignore */ } };
-  // 界面大小：整页缩放（原生 WKWebView.pageZoom），默认 90%
-  App.ZOOMS = { s: 0.85, m: 0.9, l: 1 };
-  App.applyZoom = () => { const z = App.ZOOMS[App.S.settings.uiZoom] || App.ZOOMS.m; App.native('zoom', { value: z }); };
   App.applyTabStyle = () => {
     document.documentElement.classList.toggle('ntab', App.useNativeBar());
     if (App.syncNativeBar) App.syncNativeBar(true);
@@ -214,7 +211,6 @@
     startSplash();
     App.load();
     App.applyTabStyle();
-    App.applyZoom();
     // v3.1：界面统一成设计稿的奶油黄配色，升级时切回一次（之后想换主题可以在「外观」里换）
     if (!App.S.settings.ui31) { App.S.settings.ui31 = 1; App.S.settings.theme = 'millet'; }
     App.applyTheme();

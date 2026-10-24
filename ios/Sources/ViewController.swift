@@ -73,8 +73,8 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
             web.trailingAnchor.constraint(equalTo: view.trailingAnchor)
         ])
         webView = web
-        let savedZoom = UserDefaults.standard.object(forKey: Self.zoomKey) as? Double ?? 0.9
-        web.pageZoom = CGFloat(savedZoom)
+        web.pageZoom = 1   // 保持默认大小（不缩放）
+        UserDefaults.standard.removeObject(forKey: "pageZoom")
 
         NotificationCenter.default.addObserver(self, selector: #selector(handleQuickAdd),
                                                name: .xmQuickAdd, object: nil)
@@ -401,8 +401,6 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
         case "tabbar":
             tabHost?.setBar(hidden: (body["hidden"] as? Bool) ?? false)
             if let hex = body["accent"] as? String { tabHost?.setAccent(hex: hex, plus: body["plus"] as? String) }
-        case "zoom":
-            if let v = body["value"] as? Double { setZoom(v) }
         case "privacy":
             UserDefaults.standard.set((body["on"] as? Bool) ?? false, forKey: Self.privacyKey)
         case "receiptShot":
@@ -534,7 +532,6 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
     // MARK: - 安全区 + 界面缩放
     // 用 Xcode 26 打包后，网页里的 env(safe-area-inset-*) 可能拿不到真实值（顶部会被状态栏挡住、点不到），
     // 所以由原生层把刘海/灵动岛和底部小黑条的真实高度直接写进网页的 CSS 变量。
-    private static let zoomKey = "pageZoom"
     private var lastSafe = ""
 
     private func pushSafeArea() {
@@ -554,15 +551,6 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        pushSafeArea()
-    }
-
-    private func setZoom(_ v: Double) {
-        let z = CGFloat(min(1.1, max(0.75, v)))
-        UserDefaults.standard.set(Double(z), forKey: Self.zoomKey)
-        guard abs(webView.pageZoom - z) > 0.001 else { return }
-        webView.pageZoom = z
-        lastSafe = ""
         pushSafeArea()
     }
 
