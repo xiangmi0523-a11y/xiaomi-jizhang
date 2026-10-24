@@ -396,8 +396,7 @@
           } else if (a === 'sync') C.sync(true);
           else if (a === 'auto') { App.S.settings.cloudAuto = App.S.settings.cloudAuto === false; App.changed(); h.update(); }
           else if (a === 'out') {
-            if (!await UI.confirm({ title: '退出登录？', msg: '这台手机上的数据会保留，云端的数据也还在。重新登录后会继续同步。' })) return;
-            await SB.signOut(); App.S.sync = null; App.changed(); h.update(); UI.toast('已退出登录');
+            await A.logout(); if (!sheet || sheet.closed) return; h.update();
           }
         });
       },

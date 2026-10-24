@@ -24,7 +24,7 @@
     if (!NTAB) return;
     const lock = document.getElementById('lock');
     const covered = !App.useNativeBar() || !!(document.getElementById('splash') || (lock && !lock.hidden) || App.sheets.length ||
-      document.querySelector('.dlg-wrap, .sign-wrap, .rc-wrap, .gacha, .wn'));
+      document.querySelector('#auth-gate, .dlg-wrap, .sign-wrap, .rc-wrap, .gacha, .wn'));
     const cs = getComputedStyle(document.documentElement);
     const accent = cs.getPropertyValue('--accent-strong').trim(), plus = cs.getPropertyValue('--gb').trim();
     const key = covered + accent + plus;
@@ -219,6 +219,7 @@
     App.runRecurring();
     App.mood.decay(); App.flush();
     App.render(false);
+    App.authGate.boot();   // 没登录 → 先进登录页
     setTimeout(() => App.smart.run(), 500);
     setTimeout(() => { App.backup.run(); App.backup.remind(); App.remind.sync(true); }, 2500);
     setTimeout(() => App.budget.check(), 800);

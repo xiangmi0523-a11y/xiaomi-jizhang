@@ -49,10 +49,10 @@
     const days = App.recordDays(), n = S.records.length;
     const bud = S.budget.total > 0 ? '本月 ¥' + money(S.budget.total) : '未设置';
     const rec = S.recurring.filter(r => r.enabled).length;
-    const st = S.settings;
+    const st = S.settings, user = App.supabase && App.supabase.user();
     return `<div class="hero slim mine3">
         <div class="m3-prof"><div class="avatar">${App.catArt.svg(App.budget.catId(), { head: true, w: 60, mood: 'happy' })}</div>
-          <div class="m3-who"><h2 class="hero-title">晓米记账</h2><div class="hero-sub">已记 ${days} 天 · 共 ${n} 笔</div></div>${whisker}</div>
+          <div class="m3-who"><h2 class="hero-title">晓米记账</h2><div class="hero-sub">已记 ${days} 天 · 共 ${n} 笔</div>${user ? `<div class="m3-mail">${esc(user.email || '')}</div>` : ''}</div>${whisker}</div>
       </div>
       <div class="body">
         <div class="m3-duo">${assetCard()}${App.savings.cardHTML()}</div>
@@ -71,7 +71,8 @@
           ${mrow('openCloud', 'cloud', '云端同步', App.cloud.status())}
           ${mrow('openData', 'data', '数据与备份', App.backup.folder() ? '自动备份中' : '导出 · 导入')}
         </div>
-        <div class="card list menu">${mrow('openAbout', 'about', '关于晓米记账', 'v4.3')}</div>
+        <div class="card list menu">${mrow('openAbout', 'about', '关于晓米记账', 'v4.4')}</div>
+        ${user ? '<button class="m3-logout" data-act="logout">退出登录</button>' : ''}
       </div>`;
   };
   App.views.mine = { render: mineRender };
@@ -370,12 +371,13 @@
     const cloudOn = App.supabase && App.supabase.user();
     if (cloudOn) await App.supabase.signOut();
     UI.closeAll(); App.replaceState(null); UI.toast(cloudOn ? '已清空本机数据并退出云端登录（云端的数据还在，重新登录会恢复）' : '已清空', cloudOn ? 4200 : 1800);
+    if (cloudOn && App.authGate.enabled()) App.authGate.show();
   };
 
   A.openAbout = () => {
     UI.sheet({
       title: '关于', cls: 'compact',
-      render: () => `<div class="about"><div class="avatar big">${App.catArt.svg('n1', { head: true, w: 70, mood: 'happy' })}</div><h3>晓米记账</h3><p class="muted">v4.3 · 给自己用的小账本</p>
+      render: () => `<div class="about"><div class="avatar big">${App.catArt.svg('n1', { head: true, w: 70, mood: 'happy' })}</div><h3>晓米记账</h3><p class="muted">v4.4 · 给自己用的小账本</p>
         <p>所有数据只存在这台手机里，没有账号、没有联网、没有广告。</p>
         <p class="muted">记一笔 · 明细日历 · 统计图表 · 资产账户 · 预算 · 周期记账 · 备份导出</p></div>`
     });
