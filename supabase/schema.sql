@@ -103,26 +103,26 @@ declare
 begin
   foreach t in array array['xm_records', 'xm_accounts', 'xm_categories', 'xm_cats', 'xm_state'] loop
     -- updated_at 由数据库自动刷新
-    execute format('drop trigger if exists %I on public.%I', t || '_touch', t);
-    execute format('create trigger %I before insert or update on public.%I for each row execute function public.xm_touch_updated_at()', t || '_touch', t);
-
+    if not exists (select 1 from pg_trigger where tgname = t || '_touch') then
+      execute format('create trigger %I before insert or update on public.%I for each row execute function public.xm_touch_updated_at()', t || '_touch', t);
+    end if;
     -- 按「用户 + 更新时间」查增量
     execute format('create index if not exists %I on public.%I (user_id, updated_at)', t || '_user_updated_idx', t);
-
-    -- 行级安全：只允许本人
+    -- 行级安全：只允许本人（没有给 anon 的策略，所以未登录请求一行都读不到、写不进）
     execute format('alter table public.%I enable row level security', t);
     execute format('alter table public.%I force row level security', t);
-    execute format('drop policy if exists %I on public.%I', t || '_select_own', t);
-    execute format('drop policy if exists %I on public.%I', t || '_insert_own', t);
-    execute format('drop policy if exists %I on public.%I', t || '_update_own', t);
-    execute format('drop policy if exists %I on public.%I', t || '_delete_own', t);
-    execute format('create policy %I on public.%I for select to authenticated using ((select auth.uid()) = user_id)', t || '_select_own', t);
-    execute format('create policy %I on public.%I for insert to authenticated with check ((select auth.uid()) = user_id)', t || '_insert_own', t);
-    execute format('create policy %I on public.%I for update to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id)', t || '_update_own', t);
-    execute format('create policy %I on public.%I for delete to authenticated using ((select auth.uid()) = user_id)', t || '_delete_own', t);
-
-    -- 未登录（anon）完全不能碰；登录用户只能做增删改查，再由上面的策略限制到自己的行
-    execute format('revoke all on public.%I from anon', t);
+    if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = t and policyname = t || '_select_own') then
+      execute format('create policy %I on public.%I for select to authenticated using ((select auth.uid()) = user_id)', t || '_select_own', t);
+    end if;
+    if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = t and policyname = t || '_insert_own') then
+      execute format('create policy %I on public.%I for insert to authenticated with check ((select auth.uid()) = user_id)', t || '_insert_own', t);
+    end if;
+    if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = t and policyname = t || '_update_own') then
+      execute format('create policy %I on public.%I for update to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id)', t || '_update_own', t);
+    end if;
+    if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = t and policyname = t || '_delete_own') then
+      execute format('create policy %I on public.%I for delete to authenticated using ((select auth.uid()) = user_id)', t || '_delete_own', t);
+    end if;
     execute format('grant select, insert, update, delete on public.%I to authenticated', t);
   end loop;
 end;
