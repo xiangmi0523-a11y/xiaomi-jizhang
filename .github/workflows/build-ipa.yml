@@ -15,13 +15,21 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: 选择较新的 Xcode
+        shell: bash {0}
         run: |
-          # 优先用 Xcode 26（iOS 26 SDK 才有系统原生液态玻璃底栏），没有就退回 Xcode 16
-          XC=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | grep -v beta | sort -V | tail -1 || true)
-          [ -z "$XC" ] && XC=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -1 || true)
-          if [ -n "$XC" ]; then sudo xcode-select -s "$XC/Contents/Developer"; fi
-          xcodebuild -version
-          echo "::notice::使用 $(xcodebuild -version | head -1)
+          # 优先用 Xcode 26（iOS 26 SDK 才有系统原生液态玻璃底栏），不能用就退回 Xcode 16
+          echo "::notice::可用的 Xcode：$(ls -d /Applications/Xcode*.app 2>/dev/null | xargs -n1 basename | tr '\n' ' ')"
+          OK=""
+          for XC in $(ls -d /Applications/Xcode_26*.app /Applications/Xcode_16*.app 2>/dev/null | grep -vi beta | sort -Vr); do
+            sudo xcode-select -s "$XC/Contents/Developer" || continue
+            if xcodebuild -version >/tmp/xv.txt 2>&1 || { sudo xcodebuild -runFirstLaunch >/dev/null 2>&1; xcodebuild -version >/tmp/xv.txt 2>&1; }; then
+              OK="$XC"; break
+            else
+              echo "::warning::$(basename "$XC") 不能用：$(tail -1 /tmp/xv.txt)"
+            fi
+          done
+          if [ -z "$OK" ]; then echo "::error::没有可用的 Xcode"; exit 1; fi
+          echo "::notice::使用 $(head -1 /tmp/xv.txt)（$(basename "$OK")）"
 
       - name: 安装 XcodeGen
         run: brew install xcodegen
