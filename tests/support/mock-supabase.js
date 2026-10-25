@@ -22,6 +22,7 @@ class MockSupabase {
     this.lastMicros = 0;
     this.seq = 0;
     this.offline = false;        // 设为 true 时模拟断网（请求直接失败）
+    this.delayMs = 0;            // 每个请求延迟多少毫秒（模拟慢网络）
   }
 
   // 严格递增的 UTC 时间戳，格式与 Supabase 返回的 timestamptz 一致
@@ -140,6 +141,7 @@ class MockSupabase {
     await context.route(MOCK_ORIGIN + '/**', async route => {
       const req = route.request();
       if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
+      if (this.delayMs) await new Promise(r => setTimeout(r, this.delayMs));
       if (this.offline) return route.abort('internetdisconnected');
       const r = this.handle(req.method(), req.url(), await req.allHeaders(), req.postData());
       return route.fulfill({ status: r.status, headers: Object.assign({ 'Content-Type': 'application/json' }, cors), body: r.body });

@@ -114,6 +114,16 @@
     try { if (session) await SB.call('POST', '/auth/v1/logout', {}); } catch (e) { /* 离线也照样退出 */ }
     saveSession(null);
   };
+  // 立即在本机退出：不等网络，马上清掉内存和 localStorage 里的登录态（密码锁「清空并重置」用）；
+  // 再用刚才的令牌在后台通知服务器作废它，离线或失败都不影响本机已经退出
+  SB.signOutNow = () => {
+    const s = session;
+    saveSession(null);
+    if (s && s.access_token) {
+      H.request('POST', CFG.url + '/auth/v1/logout', { apikey: CFG.key, 'Content-Type': 'application/json', Authorization: 'Bearer ' + s.access_token }, null).catch(() => { /* ignore */ });
+    }
+    if (App.cloud && App.cloud.paint) App.cloud.paint();
+  };
 
   // PostgREST：查询 / 写入
   SB.select = (table, query) => SB.call('GET', `/rest/v1/${table}?${query}`);
@@ -210,6 +220,10 @@
   // 时间戳直接按字符串比较：Supabase 返回的都是同一种 UTC 格式（Safari 解析 6 位小数秒不一定可靠）
   const later = (a, b) => (!a ? b : !b ? a : (b > a ? b : a));
 
+  // 同步途中账号变了（退出登录、密码锁重置）：拉下来的数据不再写回本机，这次同步直接取消
+  let syncUid = '';
+  const stillSameUser = () => { const u = SB.user(); if (!u || u.id !== syncUid) throw new Error('已退出登录，本次同步已取消'); };
+
   const syncTable = async (t, stat) => {
     const m = meta(), tm = m.t[t.name] || (m.t[t.name] = { since: '', h: {}, init: false });
     const first = !tm.init;   // 这台手机第一次和云端对账：云端已有的行以云端为准
@@ -237,6 +251,7 @@
       if (!cur || curHash !== h) { map.set(k, item); changedLocal = true; stat.down++; }
       tm.h[k] = h;
     });
+    stillSameUser();
     if (changedLocal) t.write(Array.from(map.values()));
 
     // 2) 再推：本地新增 / 修改的行
@@ -278,6 +293,7 @@
       sm.since = w.updated_at;
       const rh = hash(JSON.stringify(w.data || {}));
       const editedHere = !first && localH() !== sm.h;
+      stillSameUser();
       if (rh !== sm.rh && !editedHere) { stateIn(w.data || {}); changedLocal = true; stat.down++; }
       sm.rh = rh;
       if (!editedHere) sm.h = localH();
@@ -297,6 +313,7 @@
     if (!SB.user()) { if (manual) UI.toast('请先登录'); return false; }
     if (C.busy) { again = true; return false; }
     C.busy = true; C.err = ''; C.paint();
+    syncUid = SB.user().id;
     const stat = { up: 0, down: 0, del: 0 };
     let changed = false;
     try {

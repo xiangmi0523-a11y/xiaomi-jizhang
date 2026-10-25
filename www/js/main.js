@@ -137,7 +137,15 @@
       if (a === 'bio') { App.native('auth', {}); return; }
       if (a === 'forgot') { mode = 'forgot'; paint(); return; }
       if (a === 'back') { mode = 'pad'; buf = ''; paint(); return; }
-      if (a === 'reset') { App.replaceState(null); close(''); UI.toast('已重置'); return; }
+      if (a === 'reset') {
+        // H4：重置前先退出云端登录。只清空本机账本、不退出的话，下次同步会把云端账本整个拉回来，等于绕过了密码锁
+        const SB = App.supabase;
+        if (SB && SB.signOutNow) SB.signOutNow();   // 立即在本机退出（内存 + localStorage），并在后台通知服务器作废令牌
+        try { localStorage.removeItem('xm_supabase_session'); } catch (e) { /* ignore */ }
+        App.replaceState(null); close(''); UI.toast('已重置');
+        if (App.authGate && App.authGate.enabled()) App.authGate.show();   // App / 线上网页：回到登录页，要重新登录才能拿回云端账本
+        return;
+      }
       if (a !== 'k') return;
       const wait = Math.ceil((Lock.until - Date.now()) / 1000);
       if (wait > 0) { buf = ''; paint(`输错太多次啦，请 ${wait} 秒后再试`); return; }
