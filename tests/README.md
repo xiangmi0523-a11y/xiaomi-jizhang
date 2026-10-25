@@ -48,3 +48,19 @@ GitHub Actions：`.github/workflows/tests.yml`，任何分支推送、PR 都会�
 - 真实 Supabase 的 RLS / 触发器 / pg_cron 月报（只用假服务模拟了行为）。
 - 音效、动画、截图级的界面外观；客栈、猫咪、存钱计划、智能预算、分类预算等玩法的细节。
 - Service Worker 离线缓存（测试里刻意关掉了）。
+
+## 恢复协议（H3）的数据库测试 · `tests/db/`
+
+不经过浏览器，直接在真实 PostgreSQL + 真实 PostgREST 上验证 `supabase/restore_epoch.sql`。不需要 npm 依赖。
+
+```bash
+node tests/db/run.mjs          # 起临时 PostgreSQL 和 PostgREST，跑全部 *.test.mjs，结束后清理
+node tests/db/mutate.mjs       # SQL 变异测试：逐个拆掉防护，对应测试必须失败
+XM_PG_URL=postgres://postgres@localhost:5432/postgres node tests/db/run.mjs   # 改用现成的数据库（CI 用 postgres:17）
+```
+
+- 同时建两个库：`xm_base`（现状，没有协议）用来**复现问题**，`xm_prot`（加了协议）用来**验证防护**。
+- `supabase-emulation.sql` 模拟 Supabase 的角色、`auth.uid()` 和默认权限（public 里新建的对象默认授权给 anon），业务对象由非超级用户 `xm_owner` 创建，与 Supabase 的 `postgres` 角色一致。
+- 并发测试用交互式 psql 会话精确控制两个事务的先后，并检查对方确实在等锁。
+- `supabase-stack-smoke.mjs` 只在 CI 里跑：用 Supabase 官方 CLI 起本地服务栈，经过真实网关和认证再验证一遍。
+- 测试专用的触发器（模拟篡改、崩溃、慢网络）只对单个测试用户生效，测试结束即删除。

@@ -47,3 +47,63 @@ jobs:
             test-results/
           retention-days: 14
           if-no-files-found: ignore
+
+  # 恢复协议（H3）：真实 PostgreSQL 17（与生产同一大版本）+ 真实 PostgREST，跑数据库协议测试和 SQL 变异测试
+  # 全部在 CI 的一次性容器里，不连接生产数据库
+  db-protocol:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust      # 一次性测试库：本地信任登录，方便切换模拟的 Supabase 角色
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 2s --health-timeout 5s --health-retries 30
+    env:
+      XM_PG_URL: postgres://postgres@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: 数据库协议与并发测试
+        run: node tests/db/run.mjs
+      - name: SQL 变异测试（每道防护拆掉后，对应测试必须失败）
+        run: node tests/db/mutate.mjs
+
+  # 恢复协议（H3）：在 Supabase 官方 CLI 起的本地服务栈上做冒烟测试（真实网关、认证、PostgREST、postgres 角色）
+  supabase-stack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: 启动 Supabase 本地服务栈（一次性，只在 CI 里）
+        run: |
+          supabase --version
+          mkdir -p "$RUNNER_TEMP/sb" && cd "$RUNNER_TEMP/sb"
+          supabase init </dev/null
+          supabase start -x studio,imgproxy,edge-runtime,logflare,vector,realtime,storage-api,postgres-meta
+          supabase status -o env | grep -E '^(API_URL|ANON_KEY|DB_URL)=' > "$RUNNER_TEMP/sb.env"
+          sed 's/=.*/=…/' "$RUNNER_TEMP/sb.env"
+      - name: 在本地服务栈里建表并执行迁移
+        run: |
+          set -a; . "$RUNNER_TEMP/sb.env"; set +a
+          psql "$DB_URL" -X -q -v ON_ERROR_STOP=1 -f supabase/schema.sql
+          psql "$DB_URL" -X -q -v ON_ERROR_STOP=1 -f supabase/restore_epoch.sql
+          psql "$DB_URL" -X -A -t -c "select version(), (select rolbypassrls from pg_roles where rolname = current_user)"
+      - name: 冒烟测试
+        run: |
+          set -a; . "$RUNNER_TEMP/sb.env"; set +a
+          node --test tests/db/supabase-stack-smoke.mjs
+      - name: 停止服务栈
+        if: always()
+        run: cd "$RUNNER_TEMP/sb" && supabase stop --no-backup || true
