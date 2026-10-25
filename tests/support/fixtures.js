@@ -33,7 +33,7 @@ const test = base.test.extend({
     const open = async (opts = {}) => {
       const u = testInfo.project.use;
       const context = await browser.newContext({
-        baseURL: u.baseURL, viewport: u.viewport, isMobile: u.isMobile, hasTouch: u.hasTouch,
+        baseURL: opts.baseURL || u.baseURL, viewport: u.viewport, isMobile: u.isMobile, hasTouch: u.hasTouch,
         locale: u.locale, timezoneId: u.timezoneId, serviceWorkers: u.serviceWorkers
       });
       const page = await context.newPage();
@@ -65,7 +65,7 @@ const test = base.test.extend({
           sessionStorage.setItem('__xm_seeded', '1');
           if (o.seed === null) localStorage.removeItem(o.key); else localStorage.setItem(o.key, typeof o.seed === 'string' ? o.seed : JSON.stringify(o.seed));
         }
-      }, { mock: MOCK_ORIGIN, forceGate: !!opts.forceGate, seed: opts.seed, key: KEY });
+      }, { mock: opts.cloudUrl || MOCK_ORIGIN, forceGate: !!opts.forceGate, seed: opts.seed, key: KEY });
       if (opts.native) await page.addInitScript(NATIVE_STUB);
       if (opts.nativeB64 !== undefined) await page.addInitScript(b64 => { window.__NATIVE_B64__ = b64; }, opts.nativeB64);
       if (opts.init) await page.addInitScript(opts.init);

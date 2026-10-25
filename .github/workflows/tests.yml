@@ -48,6 +48,52 @@ jobs:
           retention-days: 14
           if-no-files-found: ignore
 
+  # 前端接入恢复协议：浏览器里的 App → 测试网关 → 真实 PostgREST → 真实 PostgreSQL 17（含恢复协议迁移）
+  # 另外用 main 上的前端扮演「还没更新的旧版 App」
+  e2e-real:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 2s --health-timeout 5s --health-retries 30
+    env:
+      XM_PG_URL: postgres://postgres@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - name: 取 main 上的前端（旧版 App 对照用）
+        run: git fetch --depth=1 origin main:refs/remotes/origin/main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - name: 真实数据库端到端测试
+        run: |
+          set -o pipefail
+          npx playwright test -c playwright.real.config.js 2>&1 | tee "$RUNNER_TEMP/real.log"
+          echo "::notice title=真实数据库端到端测试::$(grep -E '[0-9]+ (passed|failed|flaky|skipped)' "$RUNNER_TEMP/real.log" | tr '\n' ' ')"
+      - name: 前端变异测试（每处保护拆掉后，对应用例必须失败）
+        run: |
+          set -o pipefail
+          node tests/real/mutate-frontend.js 2>&1 | tee "$RUNNER_TEMP/fmut.log"
+          echo "::notice title=前端变异测试::$(grep -E '^前端变异' "$RUNNER_TEMP/fmut.log")"
+      - name: 上传测试报告
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-real
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+          if-no-files-found: ignore
+
   # 恢复协议（H3）：真实 PostgreSQL 17（与生产同一大版本）+ 真实 PostgREST，跑数据库协议测试和 SQL 变异测试
   # 全部在 CI 的一次性容器里，不连接生产数据库
   db-protocol:

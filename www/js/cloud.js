@@ -47,6 +47,9 @@
   let session = null;
   try { session = JSON.parse(localStorage.getItem(SKEY) || 'null'); } catch (e) { session = null; }
   const saveSession = s => {
+    // 换了账号（或退出）：上一个账号的「暂停自动同步」状态不能带过来
+    const before = session && session.user && session.user.id, after = s && s.user && s.user.id;
+    if (before !== after && App.cloud) { App.cloud.halted = ''; App.cloud.staleRetry = 0; App.cloud.proto = null; }
     session = s;
     try { if (s) localStorage.setItem(SKEY, JSON.stringify(s)); else localStorage.removeItem(SKEY); } catch (e) { /* ignore */ }
   };
@@ -64,9 +67,16 @@
     return m || ('请求失败（' + status + '）');
   };
 
+  // 写数据表（新增 / 更新 / 软删除）的请求：服务器装了恢复协议时必须带上账本版本号 x-xm-epoch
+  const isDataWrite = (method, path) => method !== 'GET' && /^\/rest\/v1\/xm_/.test(path);
+
   // 统一发请求：apikey 永远带上；需要登录的接口再带上用户自己的 access_token
   SB.call = async (method, path, { body, headers = {}, auth = true } = {}) => {
     const h = Object.assign({ apikey: CFG.key, 'Content-Type': 'application/json' }, headers);
+    if (isDataWrite(method, path)) {
+      const ep = C.writeEpoch();                 // 版本号未确认时这里会抛错：宁可不传，也不发不带版本号的写入
+      if (ep != null) h['x-xm-epoch'] = String(ep);
+    }
     if (auth) {
       await SB.ensureToken();
       if (!session) throw new Error('请先登录');
@@ -79,7 +89,12 @@
       SB._retried = true;
       try { await SB.refresh(true); return await SB.call(method, path, { body, headers, auth }); } finally { SB._retried = false; }
     }
-    if (r.status < 200 || r.status >= 300) { const e = new Error(errText(j, r.status)); e.status = r.status; throw e; }
+    if (r.status < 200 || r.status >= 300) {
+      const e = new Error(errText(j, r.status));
+      e.status = r.status; e.code = j && j.code; e.hint = j && j.hint; e.details = j && j.details;
+      e.stale = r.status === 409 && !!j && j.hint === 'xm_stale_epoch';   // 服务器：账本版本号已过期
+      throw e;
+    }
     return j;
   };
 
@@ -128,13 +143,31 @@
   // PostgREST：查询 / 写入
   SB.select = (table, query) => SB.call('GET', `/rest/v1/${table}?${query}`);
   SB.upsert = (table, rows, conflict) => SB.call('POST', `/rest/v1/${table}?on_conflict=${conflict}`, { body: rows, headers: { Prefer: 'resolution=merge-duplicates,return=representation' } });
+  // 读取账本版本号。服务器还没装恢复协议（没有 xm_meta 表）时返回 protocol: false
+  SB.readMeta = async () => {
+    try {
+      const rows = await SB.select('xm_meta', 'select=epoch');
+      return { protocol: true, epoch: rows && rows[0] ? Number(rows[0].epoch) || 0 : 0 };
+    } catch (e) {
+      if (e.status === 404 || e.code === 'PGRST205' || e.code === '42P01') return { protocol: false, epoch: 0 };
+      throw e;
+    }
+  };
   SB.markDeleted = (table, keyCol, keys) => {
     const list = keys.map(k => '"' + String(k).replace(/["\\]/g, '') + '"').join(',');
     return SB.call('PATCH', `/rest/v1/${table}?${keyCol}=in.(${encodeURIComponent(list)})`, { body: { deleted: true }, headers: { Prefer: 'return=representation' } });
   };
 
   /* =================== 同步 =================== */
-  const C = App.cloud = { busy: false };
+  // proto：服务器是否装了恢复协议（true / false / null = 还不知道）
+  // halted：版本校验失败但版本号没变（多半是请求头没送到服务器）——暂停自动同步，避免无限重试
+  const C = App.cloud = { busy: false, proto: null, halted: '' };
+  C.writeEpoch = () => {
+    if (C.proto === false) return null;                         // 服务器没装协议：照旧，不带请求头
+    const m = App.S && App.S.sync;
+    if (C.proto === true && m && Number.isInteger(m.epoch)) return m.epoch;
+    const e = new Error('还没确认云端账本版本，暂不上传'); e.code = 'xm_no_epoch'; throw e;
+  };
   const hash = s => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36); };
   const meta = () => {
     const S = App.S;
@@ -308,22 +341,69 @@
     return changedLocal;
   };
 
+  // 本机记录的版本号与云端比较，决定这次同步怎么做
+  //   normal：版本号一致（或服务器没装协议）→ 普通同步
+  //   rebase：本机落后（或本机同步过但没记版本号）→ 先保护本机修改，再与云端对齐
+  C.checkEpoch = async () => {
+    const r = await SB.readMeta();
+    stillSameUser();
+    C.proto = r.protocol;
+    C.serverEpoch = r.epoch;
+    if (!r.protocol) return 'normal';
+    const m = meta();
+    const synced = !!m.at || Object.keys(m.t || {}).some(k => m.t[k] && m.t[k].init);
+    if (Number.isInteger(m.epoch)) return m.epoch === r.epoch ? 'normal' : 'rebase';
+    // 本机还没记过版本号：从没在这台手机上同步过 → 直接采用云端版本；
+    // 同步过但没记（旧版 App 升级上来）→ 云端从没恢复过（0）就直接采用，否则无法确认基线是否早于恢复，按落后处理
+    if (!synced || r.epoch === 0) { m.epoch = r.epoch; return 'normal'; }
+    return 'rebase';
+  };
+  // 写入收到 409（版本号过期）：重读版本号。确实变了 → 马上安排一次对齐；没变 → 请求头没送到，暂停自动同步
+  C.onStale = async () => {
+    let r = null;
+    try { r = await SB.readMeta(); } catch (e) { r = null; }
+    const local = meta().epoch;
+    if (r && r.protocol && r.epoch !== local) {
+      C.err = '账本已在另一台设备恢复过备份，正在与云端对齐…';
+      C.staleRetry = (C.staleRetry || 0) + 1;
+      if (C.staleRetry <= 2) { clearTimeout(timer); timer = setTimeout(() => C.sync(false), 300); }
+      else C.halted = 'stale-loop';
+    } else {
+      C.halted = 'epoch-header';
+      C.err = '云端拒绝了这次同步（账本版本校验没通过），已暂停自动同步。请稍后在「云端同步」里点「立即同步」重试';
+    }
+  };
+
+  // 与云端对齐（Phase 2B-2 实现）：在此之前一律不写
+  C.rebase = async () => {
+    const e = new Error('账本已在另一台设备恢复过备份，需要先与云端对齐');
+    e.code = 'xm_need_rebase'; throw e;
+  };
+
   let again = false, timer = null;
   C.sync = async (manual) => {
     if (!SB.user()) { if (manual) UI.toast('请先登录'); return false; }
     if (C.busy) { again = true; return false; }
+    if (C.halted && !manual) return false;                      // 暂停中：只有用户手动同步才再试
     C.busy = true; C.err = ''; C.paint();
     syncUid = SB.user().id;
     const stat = { up: 0, down: 0, del: 0 };
     let changed = false;
     try {
-      for (const t of TABLES) changed = (await syncTable(t, stat)) || changed;
-      changed = (await syncState(stat)) || changed;
+      // 1) 先确认账本版本号：每次同步（登录、启动、回到前台、改动后的自动同步、手动同步）都经过这里
+      const mode = await C.checkEpoch();
+      if (mode === 'rebase') changed = await C.rebase(stat);
+      else {
+        for (const t of TABLES) changed = (await syncTable(t, stat)) || changed;
+        changed = (await syncState(stat)) || changed;
+      }
       meta().at = Date.now();
       C.last = stat;
+      C.halted = ''; C.staleRetry = 0;
       if (manual) UI.toast(stat.up + stat.down + stat.del ? `同步完成：上传 ${stat.up} · 下载 ${stat.down}${stat.del ? ' · 删除 ' + stat.del : ''}` : '已经是最新的了', 2200, 'gold');
     } catch (e) {
       C.err = e.message || String(e);
+      if (e.stale) await C.onStale();                           // 409：账本版本号过期
       if (manual) UI.toast('同步失败：' + C.err, 3200);
     } finally {
       C.busy = false;
