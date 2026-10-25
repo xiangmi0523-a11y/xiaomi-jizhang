@@ -1,8 +1,9 @@
 /* 晓米记账 · 全局音效（全部用 Web Audio API 现场合成，不需要任何音频文件，也不联网）
  *
  * 有哪些声音：
- *   meow  猫叫（每次音高、长短、腔调都随机，每只猫还有自己的嗓音）
- *   purr  呼噜声（猫在睡觉 / 吃到罐头）
+ *   meow  猫叫：用真猫录音（CC0，内嵌在 catvoice.js），每次随机换一段、音高也随机，每只猫还有自己的嗓音
+ *   purr  呼噜声（猫在睡觉 / 吃到罐头），同样是真猫录音
+ *   click 所有按钮的轻点击声（普通按钮「啵」、数字键「嗒」、开关「咔哒」、关闭「咻」、危险操作「咚」）
  *   coin  记账保存：收银机「咔」一声 + 两声清脆的金币「叮叮」
  *   tap   底部导航切换：小水滴「啵」（很轻）
  *   warn  今天超出额度 / 本月超预算：两声低沉的「咚——咚」
@@ -21,9 +22,10 @@
   /* ---------------- 设置 ---------------- */
   const cfg = () => {
     const st = App.S && App.S.settings;
-    if (!st) return { on: true, vol: 0.8, loud: false };
-    if (!st.sound || typeof st.sound !== 'object') st.sound = { on: true, vol: 0.8, loud: false };
+    if (!st) return { on: true, vol: 0.8, loud: false, ui: true };
+    if (!st.sound || typeof st.sound !== 'object') st.sound = { on: true, vol: 0.8, loud: false, ui: true };
     const s = st.sound;
+    if (typeof s.ui !== 'boolean') s.ui = true;
     if (typeof s.on !== 'boolean') s.on = true;
     if (!(s.vol >= 0 && s.vol <= 1)) s.vol = 0.8;
     s.loud = !!s.loud;
@@ -32,48 +34,51 @@
   SND.on = () => SND.supported && cfg().on;
 
   /* ---------------- 引擎 + iOS 解锁 ---------------- */
-  let ctx = null, master = null, out = null, noiseBuf = null, unlocked = false;
+  let ctx = null, master = null, out = null, noiseBuf = null, stale = false, hiddenAt = 0;
   const setSession = () => {
     const loud = cfg().loud;
     // Safari / iOS 16.4+：ambient = 跟随静音拨片、不打断后台音乐；playback = 静音模式下也响
     try { if (navigator.audioSession) navigator.audioSession.type = loud ? 'playback' : 'ambient'; } catch (e) { /* ignore */ }
     App.native('audioSession', { loud });
   };
-  const ensure = () => {
-    if (!AC) return null;
-    if (!ctx) {
-      try { ctx = new AC({ latencyHint: 'interactive' }); } catch (e) { try { ctx = new AC(); } catch (e2) { return null; } }
-      out = ctx.createDynamicsCompressor();          // 防止几个声音叠在一起时爆音
-      out.threshold.value = -14; out.knee.value = 12; out.ratio.value = 6; out.attack.value = 0.002; out.release.value = 0.18;
-      master = ctx.createGain(); master.gain.value = cfg().vol;
-      master.connect(out); out.connect(ctx.destination);
-      // 一段白噪声，给收银机、呼噜、气声用
-      noiseBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 1.6), ctx.sampleRate);
-      const d = noiseBuf.getChannelData(0);
-      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-      setSession();
-    }
-    return ctx;
+  const build = () => {
+    try { ctx = new AC({ latencyHint: 'interactive' }); } catch (e) { try { ctx = new AC(); } catch (e2) { ctx = null; return; } }
+    out = ctx.createDynamicsCompressor();          // 防止几个声音叠在一起时爆音
+    out.threshold.value = -14; out.knee.value = 12; out.ratio.value = 6; out.attack.value = 0.002; out.release.value = 0.18;
+    master = ctx.createGain(); master.gain.value = cfg().vol;
+    master.connect(out); out.connect(ctx.destination);
+    // 一段白噪声，给收银机、呼噜、气声用
+    noiseBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 1.6), ctx.sampleRate);
+    const d = noiseBuf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    setSession();
+    if (SND._load) SND._load();
   };
+  const kill = () => {
+    const c = ctx; ctx = null; master = out = null;
+    if (c) { try { const p = c.close(); if (p && p.catch) p.catch(() => { }); } catch (e) { /* ignore */ } }
+  };
+  const ensure = () => { if (!AC) return null; if (!ctx) build(); return ctx; };
+  // 在点按里调用：从后台回来后直接换一个新的声音引擎（iOS 上旧的经常显示「运行中」但其实已经没声音了），
+  // 再在手势里放一帧静音，把声音彻底解锁
   const unlock = () => {
+    if (stale) { stale = false; kill(); }
     const c = ensure(); if (!c) return;
     if (c.state !== 'running') { try { const p = c.resume(); if (p && p.catch) p.catch(() => { }); } catch (e) { /* ignore */ } }
-    if (!unlocked) {
-      // 老版本 iOS 需要在手势里真正「播放」一次才算解锁：放一个 1 帧的静音片段
-      try { const b = c.createBuffer(1, 1, 22050), s = c.createBufferSource(); s.buffer = b; s.connect(c.destination); s.start(0); } catch (e) { /* ignore */ }
-      if (c.state === 'running') unlocked = true;
-      else setTimeout(() => { if (c.state === 'running') unlocked = true; }, 60);
-    }
+    try { const b = c.createBuffer(1, 1, 22050), s = c.createBufferSource(); s.buffer = b; s.connect(c.destination); s.start(0); } catch (e) { /* ignore */ }
   };
   SND.unlock = unlock;
   SND.state = () => ctx ? ctx.state : 'none';
-  // 每次点按都顺手检查一下（来电、切后台后 iOS 会把声音挂起成 interrupted / suspended）
+  SND.wake = () => { if (ctx) stale = true; };     // 原生层：App 回到前台时调用
+  // 每次点按都检查：还没解锁 / 被来电挂起 / 刚从后台回来，就在这次点按里修好
   ['pointerdown', 'touchend', 'mousedown', 'keydown', 'click'].forEach(ev =>
-    document.addEventListener(ev, () => { if (!ctx || ctx.state !== 'running') unlock(); }, { capture: true, passive: true }));
+    document.addEventListener(ev, () => { if (stale || !ctx || ctx.state !== 'running') unlock(); }, { capture: true, passive: true }));
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden || !ctx) return;
-    if (ctx.state !== 'running') { try { ctx.resume().catch(() => { }); } catch (e) { /* ignore */ } }
+    if (document.hidden) { hiddenAt = Date.now(); if (ctx) { try { ctx.suspend().catch(() => { }); } catch (e) { /* ignore */ } } return; }
+    if (ctx && hiddenAt) stale = true;
+    if (ctx) { try { ctx.resume().catch(() => { }); } catch (e) { /* ignore */ } }   // 能直接恢复最好，不能就等下一次点按换新的
   });
+  window.addEventListener('pageshow', e => { if (e.persisted && ctx) stale = true; });
 
   /* ---------------- 合成小工具 ---------------- */
   const R = (a, b) => a + Math.random() * (b - a);
@@ -102,19 +107,47 @@
     stopAt(nodes, t + dur);
   };
 
+  /* ---------------- 真猫录音 ---------------- */
+  const BUF = {}; let loading = null;
+  const decode = b64 => new Promise((res, rej) => {
+    const bin = atob(b64), u8 = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    try { const p = ctx.decodeAudioData(u8.buffer, res, rej); if (p && p.catch) p.catch(rej); } catch (e) { rej(e); }
+  });
+  SND._load = () => {
+    if (loading || !ctx || !window.XM_CATVOICE) return loading;
+    loading = Promise.all(Object.keys(window.XM_CATVOICE).map(g =>
+      Promise.all(window.XM_CATVOICE[g].map(b => decode(b).catch(() => null))).then(list => { BUF[g] = list.filter(Boolean); })
+    )).catch(() => { });
+    return loading;
+  };
+  SND.ready = () => { ensure(); return SND._load() || Promise.resolve(); };
+  const sample = (t, buf, rate = 1, vol = 1) => {
+    const g = gainNode(vol, master), s = ctx.createBufferSource();
+    s.buffer = buf; s.playbackRate.value = rate; s.connect(g); s.start(t);
+    return t + buf.duration / rate;
+  };
+  let lastMew = -1;
+  const pickMew = idx => {
+    const list = BUF.mew; if (!list || !list.length) return null;
+    let i = idx != null ? idx : Math.floor(Math.random() * list.length);
+    if (idx == null && list.length > 2 && i === lastMew) i = (i + 1 + Math.floor(Math.random() * (list.length - 1))) % list.length;   // 别连着两次同一段
+    lastMew = i; return list[i];
+  };
+
   /* ---------------- 各个声音 ---------------- */
   const SYN = {};
   const def = (name, gap, fn) => { SYN[name] = fn; return (...a) => play(name, t => fn(t, ...a), gap); };
   const last = {};
   const play = (name, fn, gap = 0.04) => {
     if (!SND.on()) return;
-    const c = ensure(); if (!c) return;
-    if (c.state !== 'running') { try { c.resume().catch(() => { }); } catch (e) { /* ignore */ } }
-    const now = c.currentTime;
+    if (stale || !ctx || ctx.state !== 'running') unlock();   // 大多数声音本身就在点按里触发，这里顺手修好
+    const c = ctx; if (!c) return;
+    const now = performance.now() / 1000;   // 用真实时间节流（声音引擎挂起时 currentTime 不走）
     if (last[name] && now - last[name] < gap) return;   // 连点时别叠成一团
     last[name] = now;
     master.gain.value = cfg().vol;
-    try { fn(now + 0.012); } catch (e) { /* 声音出错不影响记账 */ }
+    try { fn(c.currentTime + 0.012); } catch (e) { /* 声音出错不影响记账 */ }
   };
 
   // 水滴「啵」：正弦波音高快速上扬，很短、很轻
@@ -159,6 +192,9 @@
 
   // 呼噜：带通噪声 + 25Hz 左右的起伏，两口气
   SND.purr = def('purr', 0.8, (t, len = 1.3) => {
+    // 真猫录音：睡着时是慢慢的呼噜；吃到罐头是「喵～呼噜」
+    if (len >= 1.3 && BUF.happy && BUF.happy.length) { sample(t, BUF.happy[0], R(0.97, 1.04), 0.95); return; }
+    if (BUF.purr && BUF.purr.length) { sample(t, BUF.purr[0], R(0.96, 1.03), 1); return; }
     const bp = filt('bandpass', 480, 0.9, gainNode(1.5, master)), lp = filt('lowpass', 1300, 0.5, bp);   // 手机喇叭放不出 300Hz 以下，颗粒感放在 400~900Hz
     const amp = ctx.createGain(); amp.gain.value = 0; amp.connect(lp);
     const trem = ctx.createGain(); trem.gain.value = 0.5; trem.connect(amp.gain);
@@ -179,6 +215,17 @@
   const voiceOf = id => { let h = 7; String(id || '').split('').forEach(ch => { h = (h * 31 + ch.charCodeAt(0)) % 997; }); return 0.86 + (h % 29) / 100; };
   const KINDS = ['mew', 'meow', 'meow', 'mrrp', 'mew2', 'long'];
   SND.meow = def('meow', 0.18, (t, o = {}) => {
+    if (BUF.mew && BUF.mew.length) {
+      // 真猫录音：随机一段；音高 = 这只猫的嗓音 × 每次的小随机；心情差用轻柔的那两段、再低一点
+      const soft = o.sad && BUF.mew.length >= 8;
+      const buf = soft ? BUF.mew[6 + Math.floor(Math.random() * 2)] : pickMew(o.idx);
+      const voice = 0.93 + (voiceOf(o.id) - 0.86) * 0.6;          // 0.93 ~ 1.10
+      sample(t, buf, voice * R(0.95, 1.06) * (soft ? 0.94 : 1), soft ? 0.85 : 1);
+      return;
+    }
+    synthMeow(t, o);
+  });
+  const synthMeow = (t, o = {}) => {   // 录音还没解码好时的备用合成猫叫
     const kind = o.kind || KINDS[Math.floor(Math.random() * KINDS.length)];
     const base = R(520, 700) * voiceOf(o.id) * (o.sad ? 0.82 : 1);
     const len = { mew: R(0.2, 0.28), mew2: R(0.32, 0.4), meow: R(0.48, 0.62), long: R(0.7, 0.86), mrrp: R(0.4, 0.5) }[kind];
@@ -220,10 +267,53 @@
     const nz = noise(ng);
     src.start(t); src2.start(t); nz.start(t);
     stopAt([src, src2, vib, nz], t + len + 0.1);
-  });
+  };
+
+  /* ---------------- 所有按钮的点击声（很轻） ---------------- */
+  const blip = (t, f0, f1, dur, vol, type = 'sine') => {
+    const g = gainNode(0, master), o = osc(type, f0, g);
+    o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur * 0.8);
+    const end = env(g, t, vol, 0.003, 0, dur); o.start(t); stopAt([o], end);
+  };
+  const CLICK = {
+    btn: t => { const k = R(0.94, 1.07); blip(t, 620 * k, 1050 * k, 0.07, 0.12); blip(t, 1240 * k, 2000 * k, 0.04, 0.025); },   // 小气泡「啵」
+    key: t => {   // 数字键：木质的「嗒」
+      const k = R(0.96, 1.05);
+      blip(t, 1500 * k, 1150 * k, 0.035, 0.09, 'triangle');
+      const ng = ctx.createGain(); ng.connect(filt('bandpass', 4200, 1.2, gainNode(1, master)));
+      const n = noise(ng); env(ng, t, 0.06, 0.001, 0, 0.018); n.start(t); stopAt([n], t + 0.04);
+    },
+    del: t => blip(t, 900, 560, 0.06, 0.09, 'triangle'),                                    // 退格：往下的「嗒」
+    on: t => { blip(t, 760, 900, 0.05, 0.1); blip(t + 0.055, 1140, 1350, 0.07, 0.1); },    // 开关打开：上行两声
+    off: t => { blip(t, 1140, 1000, 0.05, 0.09); blip(t + 0.055, 760, 640, 0.07, 0.09); },  // 开关关闭：下行两声
+    close: t => blip(t, 980, 520, 0.09, 0.09),                                               // 关闭 / 取消：「咻」往下
+    danger: t => { blip(t, 300, 220, 0.12, 0.16, 'triangle'); blip(t, 600, 440, 0.08, 0.04); }  // 删除等：低一点的「咚」
+  };
+  SND.click = def('click', 0.035, (t, kind = 'btn') => (CLICK[kind] || CLICK.btn)(t));
+  // 自己有专属声音的按钮：不再叠一个点击声
+  const OWN = '#tabbar [data-act="tab"], [data-act="innCat"], [data-k="done"], [data-snd="meow"], [data-snd="purr"], [data-snd="coin"], [data-snd="tap"], [data-snd="warn"], [data-nosnd]';
+  const CLICKABLE = 'button, a[href], [role="button"], label.key, .switch, [data-act], [data-ed], [data-k], [data-cat], [data-pick], [data-ym], [data-lk], [data-cm], [data-rc], [data-rf], [data-af], [data-cf], [data-bd], [data-emoji], [data-r], [data-ag], [data-cl], [data-rm], [data-snd]';
+  const kindOf = el => {
+    const k = el.dataset && el.dataset.k;
+    if (k) return k === 'del' ? 'del' : 'key';
+    const sw = el.matches('.switch') ? el : el.querySelector('.switch');
+    if (sw) return sw.classList.contains('on') ? 'off' : 'on';   // 点之前是开的 → 这次是关
+    const act = (el.dataset && (el.dataset.act || '')) + ' ' + (el.getAttribute('aria-label') || '') + ' ' + (el.className && el.className.baseVal == null ? el.className : '');
+    if (/sheetClose|close|cancel|back|关闭|返回/i.test(act) || (el.dataset && el.dataset.r === '0')) return 'close';
+    if (el.classList.contains('danger')) return 'danger';
+    return 'btn';
+  };
+  document.addEventListener('click', e => {
+    if (!SND.on() || !cfg().ui) return;
+    const el = e.target.closest && e.target.closest(CLICKABLE);
+    if (!el || el.disabled || el.closest(OWN) || el.matches(OWN)) return;
+    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') return;
+    SND.click(kindOf(el));
+  }, true);
 
   // 离线渲染（测试 / 导出试听用）：把某个声音合成成一段 PCM，不经过扬声器
   SND._render = async (name, arg, secs = 1.6, rate = 44100) => {
+    await SND.ready();
     const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
     const save = [ctx, master, out, noiseBuf];
     const oc = new OAC(1, Math.ceil(secs * rate), rate);
@@ -248,13 +338,14 @@
         return `<div class="form snd-form">
           <button class="field snd-row" data-snd="on"><span>开启音效</span><span class="switch${s.on ? ' on' : ''}"><i></i></span></button>
           <div class="snd-vol${s.on ? '' : ' off'}"><span>🔈</span><input type="range" min="0" max="100" step="5" value="${Math.round(s.vol * 100)}" data-snd="vol" aria-label="音量"><span>🔊</span></div>
+          <button class="field snd-row" data-snd="ui"><span>按钮点击音<small>点任何按钮都有轻轻的一声（数字键、开关、关闭各有不同）</small></span><span class="switch${s.ui ? ' on' : ''}"><i></i></span></button>
           <button class="field snd-row" data-snd="loud"><span>静音模式下也有声音<small>关闭时跟随手机侧边的静音键，不会打断你正在听的音乐</small></span><span class="switch${s.loud ? ' on' : ''}"><i></i></span></button>
           <div class="card-title pad-t">试听</div>
           <div class="snd-try">
             <button data-snd="meow">🐱<span>喵呜</span></button><button data-snd="purr">😽<span>呼噜</span></button>
             <button data-snd="coin">🪙<span>记账</span></button><button data-snd="tap">💧<span>切换</span></button><button data-snd="warn">⚠️<span>超支</span></button>
           </div>
-          <p class="hint">所有声音都是用代码现场合成的，不占空间、不用联网。点客栈里的猫会喵喵叫，保存一笔账会听到金币声，今天超出额度时会有一声低沉的提醒。</p>
+          <p class="hint">猫叫和呼噜是真猫录音（CC0 公共领域，已经内置在 App 里），其他声音是代码现场合成的，都不用联网。点客栈里的猫会喵喵叫，保存一笔账会听到金币声，今天超出额度时会有一声低沉的提醒。</p>
         </div>`;
       },
       onMount: h => {
@@ -263,6 +354,7 @@
           const s = cfg(), a = b.dataset.snd;
           if (a === 'on') { s.on = !s.on; App.flush(); h.update(); if (s.on) SND.tap(); return; }
           if (a === 'loud') { s.loud = !s.loud; App.flush(); setSession(); h.update(); return; }
+          if (a === 'ui') { s.ui = !s.ui; App.flush(); h.update(); return; }
           if (!s.on) { UI.toast('先打开音效再试听'); return; }
           if (a === 'meow') SND.meow({ id: App.budget && App.budget.catId && App.budget.catId() });
           else if (SND[a]) SND[a]();

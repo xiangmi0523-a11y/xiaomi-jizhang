@@ -74,7 +74,7 @@
           ${mrow('openCloud', 'cloud', '云端同步', App.cloud.status())}
           ${mrow('openData', 'data', '数据与备份', App.backup.folder() ? '自动备份中' : '导出 · 导入')}
         </div>
-        <div class="card list menu">${App.pwa && App.pwa.canShow() ? mrow('installApp', 'install', '安装到桌面', App.pwa.label()) : ''}${mrow('openAbout', 'about', '关于晓米记账', 'v4.6')}</div>
+        <div class="card list menu">${App.pwa && App.pwa.canShow() ? mrow('installApp', 'install', '安装到桌面', App.pwa.label()) : ''}${mrow('openAbout', 'about', '关于晓米记账', 'v4.7')}</div>
         ${user ? '<button class="m3-logout" data-act="logout">退出登录</button>' : ''}
       </div>`;
   };
@@ -380,9 +380,10 @@
   A.openAbout = () => {
     UI.sheet({
       title: '关于', cls: 'compact',
-      render: () => `<div class="about"><div class="avatar big">${App.catArt.svg('n1', { head: true, w: 70, mood: 'happy' })}</div><h3>晓米记账</h3><p class="muted">v4.6 · 给自己用的小账本</p>
+      render: () => `<div class="about"><div class="avatar big">${App.catArt.svg('n1', { head: true, w: 70, mood: 'happy' })}</div><h3>晓米记账</h3><p class="muted">v4.7 · 给自己用的小账本</p>
         <p>账本先存在本机；登录后同步到你自己的云端账号，只有你能看到。没有广告。</p>
-        <p class="muted">记一笔 · 明细日历 · 统计图表 · 资产账户 · 预算 · 周期记账 · 备份导出</p></div>`
+        <p class="muted">记一笔 · 明细日历 · 统计图表 · 资产账户 · 预算 · 周期记账 · 备份导出</p>
+        <p class="muted" style="font-size:12px">猫叫录音：BigSoundBank（Joseph SARDIN）、OpenGameArt（Kerzoven），均为 CC0 公共领域</p></div>`
     });
   };
 })();

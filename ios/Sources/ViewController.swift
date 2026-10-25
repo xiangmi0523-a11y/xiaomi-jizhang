@@ -10,6 +10,7 @@ import AVFoundation
 final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigationDelegate, UIDocumentPickerDelegate {
     private var webView: WKWebView!
     /// 音效的音频会话：默认 ambient（跟随静音拨片、和后台音乐混着放），用户打开「静音模式下也有声音」时用 playback
+    static let audioLoudKey = "audioLoud"
     static func applyAudioSession(loud: Bool) {
         let s = AVAudioSession.sharedInstance()
         do {
@@ -114,6 +115,10 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
 
     @objc private func appDidBecomeActive() {
         hidePrivacyCover()
+        // 从后台回来：重新激活音频会话，并让网页下次点按时换一个新的声音引擎（iOS 切后台后旧的常常不出声）
+        Self.applyAudioSession(loud: UserDefaults.standard.bool(forKey: Self.audioLoudKey))
+        guard pageReady else { return }
+        webView.evaluateJavaScript("window.App && App.sound && App.sound.wake && App.sound.wake()", completionHandler: nil)
     }
 
     // MARK: - 隐私遮罩：开了密码锁时，切到后台前盖一层，多任务界面里看不到账本内容
@@ -415,7 +420,9 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
             tabHost?.setBar(hidden: (body["hidden"] as? Bool) ?? false)
             if let hex = body["accent"] as? String { tabHost?.setAccent(hex: hex, plus: body["plus"] as? String) }
         case "audioSession":
-            Self.applyAudioSession(loud: (body["loud"] as? Bool) ?? false)
+            let loud = (body["loud"] as? Bool) ?? false
+            UserDefaults.standard.set(loud, forKey: Self.audioLoudKey)
+            Self.applyAudioSession(loud: loud)
         case "privacy":
             UserDefaults.standard.set((body["on"] as? Bool) ?? false, forKey: Self.privacyKey)
         case "receiptShot":
