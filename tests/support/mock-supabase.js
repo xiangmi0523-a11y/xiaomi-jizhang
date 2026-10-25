@@ -139,12 +139,17 @@ class MockSupabase {
   async attach(context) {
     const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': 'GET,POST,PATCH,DELETE,OPTIONS' };
     await context.route(MOCK_ORIGIN + '/**', async route => {
-      const req = route.request();
-      if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
-      if (this.delayMs) await new Promise(r => setTimeout(r, this.delayMs));
-      if (this.offline) return route.abort('internetdisconnected');
-      const r = this.handle(req.method(), req.url(), await req.allHeaders(), req.postData());
-      return route.fulfill({ status: r.status, headers: Object.assign({ 'Content-Type': 'application/json' }, cors), body: r.body });
+      try {
+        const req = route.request();
+        if (req.method() === 'OPTIONS') return await route.fulfill({ status: 204, headers: cors });
+        if (this.delayMs) await new Promise(r => setTimeout(r, this.delayMs));
+        if (this.offline) return await route.abort('internetdisconnected');
+        const r = this.handle(req.method(), req.url(), await req.allHeaders(), req.postData());
+        return await route.fulfill({ status: r.status, headers: Object.assign({ 'Content-Type': 'application/json' }, cors), body: r.body });
+      } catch (e) {
+        // 测试已经结束、页面已关闭时，还在路上的请求（例如慢网络模拟中的请求）直接忽略
+        if (!/closed|has been closed/i.test(String(e && e.message))) throw e;
+      }
     });
   }
 }

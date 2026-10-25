@@ -85,6 +85,7 @@ const test = base.test.extend({
       else if (d.external.length) problems.push(`[${d.name}] 有意外的外部请求：${d.external.join(', ')}`);
       const errs = d.allowErrors ? d.errors.filter(e => !d.allowErrors.test(e)) : d.errors;
       if (errs.length) problems.push(`[${d.name}] 页面报错：\n  ${errs.join('\n  ')}`);
+      await d.context.unrouteAll({ behavior: 'ignoreErrors' }).catch(() => {});   // 先撤掉拦截，忽略还在路上的请求
       await d.context.close().catch(() => {});
     }
     if (problems.length) throw new Error(problems.join('\n'));
