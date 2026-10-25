@@ -226,6 +226,7 @@
     select(id);
     if (el.classList.contains('sleeping')) {
       art.classList.remove('stir'); void art.offsetWidth; art.classList.add('stir');
+      if (App.sound) App.sound.purr(1.0);   // 睡着的猫：迷迷糊糊地呼噜一下
       talk(el, App.mood.HUNGRY_LINE);
       return;
     }
@@ -237,7 +238,10 @@
     }
     if (p) p.next = Date.now() + 4000;
     hop(art);
-    talk(el, I.lineFor(id));
+    const line = I.lineFor(id);
+    talk(el, line);
+    // 每次点都是不同的喵：音高、长短、腔调随机，每只猫还有自己的嗓音；心情差 / 客栈要破产时叫得委屈一点
+    if (App.sound) App.sound.meow({ id, sad: App.mood.get(id) < 40 || (App.smart && App.smart.stressed()) });
   };
 
   /* ---------- 喂罐头 ---------- */
@@ -268,6 +272,7 @@
         }
         hop(catEl.querySelector('.xc'));
         M.hearts(catEl);
+        if (App.sound) App.sound.purr(1.4);   // 吃到罐头：满足地呼噜
         talk(catEl, M.FED_LINES[Math.floor(Math.random() * M.FED_LINES.length)]);
       }
       refreshAct();

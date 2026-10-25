@@ -5,9 +5,19 @@ import WidgetKit
 import LocalAuthentication
 import UniformTypeIdentifiers
 import UserNotifications
+import AVFoundation
 
 final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigationDelegate, UIDocumentPickerDelegate {
     private var webView: WKWebView!
+    /// 音效的音频会话：默认 ambient（跟随静音拨片、和后台音乐混着放），用户打开「静音模式下也有声音」时用 playback
+    static func applyAudioSession(loud: Bool) {
+        let s = AVAudioSession.sharedInstance()
+        do {
+            if loud { try s.setCategory(.playback, mode: .default, options: [.mixWithOthers]) }
+            else { try s.setCategory(.ambient, mode: .default, options: [.mixWithOthers]) }
+            try s.setActive(true, options: [])
+        } catch { }
+    }
     weak var tabHost: RootTabController?
     private var webBottom: NSLayoutConstraint!
     private var pageReady = false
@@ -48,6 +58,9 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
         }
 
         let config = WKWebViewConfiguration()
+        // 音效：网页里用 Web Audio 合成，不需要用户先点一下才能出声
+        config.mediaTypesRequiringUserActionForPlayback = []
+        config.allowsInlineMediaPlayback = true
         config.setURLSchemeHandler(LocalSchemeHandler(), forURLScheme: LocalSchemeHandler.scheme)
         let controller = WKUserContentController()
         controller.add(self, name: "native")
@@ -401,6 +414,8 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
         case "tabbar":
             tabHost?.setBar(hidden: (body["hidden"] as? Bool) ?? false)
             if let hex = body["accent"] as? String { tabHost?.setAccent(hex: hex, plus: body["plus"] as? String) }
+        case "audioSession":
+            Self.applyAudioSession(loud: (body["loud"] as? Bool) ?? false)
         case "privacy":
             UserDefaults.standard.set((body["on"] as? Bool) ?? false, forKey: Self.privacyKey)
         case "receiptShot":

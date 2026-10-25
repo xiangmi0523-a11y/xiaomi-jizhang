@@ -2,7 +2,7 @@
  * - 页面和脚本：先走网络（保证总是最新版），没网时用缓存，离线也能打开记账
  * - 云端（Supabase）请求不经过这里
  */
-const VERSION = 'xm-v4.5-1';
+const VERSION = 'xm-v4.6-1';
 const PRECACHE = [
   '/',
   '/index.html',
@@ -27,6 +27,7 @@ const PRECACHE = [
   '/js/remind.js',
   '/js/savings.js',
   '/js/smart.js',
+  '/js/sound.js',
   '/js/themes.js',
   '/js/ui.js',
   '/js/views.js',

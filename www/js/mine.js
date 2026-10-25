@@ -26,6 +26,7 @@
     table: mi('<rect class="tf" x="3.5" y="4.5" width="17" height="15" rx="2.5"/><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><path d="M3.5 9.5h17M3.5 14.5h17M9.5 9.5v10"/>'),
     trash: mi('<path class="tf" d="M6 7.5l1 11.5a2 2 0 002 1.8h6a2 2 0 002-1.8l1-11.5z"/><path d="M4.5 7.5h15M6 7.5l1 11.5a2 2 0 002 1.8h6a2 2 0 002-1.8l1-11.5M9.5 7.5V4.5h5v3M10.5 11v6M13.5 11v6"/>'),
     refresh: mi('<circle class="tf" cx="12" cy="12" r="8"/><path d="M18.4 9.2A7 7 0 005.6 9M5.6 14.8a7 7 0 0012.8.2"/><path d="M18.6 5v4.4h-4.4M5.4 19v-4.4h4.4"/>'),
+    sound: mi('<path class="tf" d="M4 9.5h3.2L12 5.2v13.6l-4.8-4.3H4z"/><path d="M4 9.5h3.2L12 5.2v13.6l-4.8-4.3H4z"/><path d="M15.4 9.2a4 4 0 010 5.6M17.9 6.7a7.6 7.6 0 010 10.6"/>'),
     install: mi('<rect class="tf" x="6.5" y="2.5" width="11" height="19" rx="2.6"/><rect x="6.5" y="2.5" width="11" height="19" rx="2.6"/><path d="M12 6.6v7.2M9.2 11.2l2.8 2.8 2.8-2.8M10.4 18.3h3.2"/>'),
     wallet: mi('<path class="tf" d="M4 8.5a2.5 2.5 0 012.5-2.5H18a2 2 0 012 2v10a2 2 0 01-2 2H6.5A2.5 2.5 0 014 17.5z"/><path d="M4 8.5a2.5 2.5 0 012.5-2.5H18a2 2 0 012 2v10a2 2 0 01-2 2H6.5A2.5 2.5 0 014 17.5z"/><path d="M15 12.2h5v3.6h-5a1.8 1.8 0 010-3.6z"/><path d="M6 6l9-2.6 1.2 2.6"/>')
   };
@@ -68,11 +69,12 @@
         <div class="card list menu">
           ${mrow('openLook', 'look', '外观', (App.THEMES[st.theme] || {}).n + ' · ' + ({ auto: '跟随系统', light: '浅色', dark: '深色' }[st.mode]))}
           ${mrow('openSecurity', 'lock', '密码锁', st.pin ? '已开启' : '已关闭')}
+          ${mrow('openSound', 'sound', '音效', App.sound ? App.sound.label() : '')}
           ${mrow('openRemind', 'remind', '记账提醒', (st.remind && st.remind.on) ? '每天 ' + st.remind.time : '已关闭')}
           ${mrow('openCloud', 'cloud', '云端同步', App.cloud.status())}
           ${mrow('openData', 'data', '数据与备份', App.backup.folder() ? '自动备份中' : '导出 · 导入')}
         </div>
-        <div class="card list menu">${App.pwa && App.pwa.canShow() ? mrow('installApp', 'install', '安装到桌面', App.pwa.label()) : ''}${mrow('openAbout', 'about', '关于晓米记账', 'v4.5')}</div>
+        <div class="card list menu">${App.pwa && App.pwa.canShow() ? mrow('installApp', 'install', '安装到桌面', App.pwa.label()) : ''}${mrow('openAbout', 'about', '关于晓米记账', 'v4.6')}</div>
         ${user ? '<button class="m3-logout" data-act="logout">退出登录</button>' : ''}
       </div>`;
   };
@@ -378,7 +380,7 @@
   A.openAbout = () => {
     UI.sheet({
       title: '关于', cls: 'compact',
-      render: () => `<div class="about"><div class="avatar big">${App.catArt.svg('n1', { head: true, w: 70, mood: 'happy' })}</div><h3>晓米记账</h3><p class="muted">v4.5 · 给自己用的小账本</p>
+      render: () => `<div class="about"><div class="avatar big">${App.catArt.svg('n1', { head: true, w: 70, mood: 'happy' })}</div><h3>晓米记账</h3><p class="muted">v4.6 · 给自己用的小账本</p>
         <p>账本先存在本机；登录后同步到你自己的云端账号，只有你能看到。没有广告。</p>
         <p class="muted">记一笔 · 明细日历 · 统计图表 · 资产账户 · 预算 · 周期记账 · 备份导出</p></div>`
     });

@@ -8,6 +8,7 @@ final class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationC
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         UNUserNotificationCenter.current().delegate = self
+        ViewController.applyAudioSession(loud: false)   // 默认：静音键开着就不出声，也不打断正在听的音乐
         let window = UIWindow(frame: UIScreen.main.bounds)
         let web = ViewController()
         window.rootViewController = NativeTabs.enabled ? RootTabController(web: web) : web

@@ -149,7 +149,7 @@
     const spent = total ? cur.spent : 0;
     const lv = B.level(spent, total);
     if (w.ym !== ym || lv !== prev) { App.S.game.warn = { ym, lv }; App.changed(); }
-    if (lv > prev) showWarn(lv, spent, total, cur.smart);
+    if (lv > prev) { if (App.sound) App.sound.warn(); showWarn(lv, spent, total, cur.smart); }
     return lv;
   };
 })();

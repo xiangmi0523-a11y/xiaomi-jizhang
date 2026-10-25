@@ -99,6 +99,7 @@
       const added = E.id ? null : App.addRecord(data);
       if (E.id) App.updateRecord(E.id, data);
       const from = doneEl.getBoundingClientRect();
+      if (App.sound) App.sound.coin(data.amount >= 100000);   // 叮叮！大额（¥1000 以上）多一声
       h.close();
       if (E.id) UI.toast('已修改');
       else App.game.rewardRecord({ x: from.left + from.width / 2, y: from.top + from.height / 2 }, added);

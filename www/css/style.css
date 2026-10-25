@@ -1694,3 +1694,16 @@ html.web #page::-webkit-scrollbar { display: none; }
 .pw-steps li > b { flex: 0 0 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; color: var(--g-ink, #5A3400); background: linear-gradient(180deg, var(--ga, #FFDA61), var(--gb, #FFBA2E)); }
 .pw-steps li > span { padding-top: 2px; }
 .pw-ico { width: 18px; height: 18px; vertical-align: -3px; color: #2F7BF6; }
+
+/* ===== v4.6 音效设置 ===== */
+.snd-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; text-align: left; }
+.snd-row small { display: block; font-size: 12px; color: var(--sub); margin-top: 2px; font-weight: 400; }
+.snd-vol { display: flex; align-items: center; gap: 10px; padding: 6px 6px 10px; }
+.snd-vol.off { opacity: .4; pointer-events: none; }
+.snd-vol input { flex: 1; accent-color: var(--accent-strong); height: 28px; }
+.snd-try { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 4px; }
+.snd-try button { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 0 8px; border-radius: 16px; background: var(--card); box-shadow: 0 0 0 1.5px var(--edge, var(--line)); font-size: 22px; transition: transform .1s; }
+.snd-try button span { font-size: 12px; color: var(--sub); font-weight: 700; }
+.snd-try button:active { transform: scale(.92); }
+.snd-row > span:first-child { flex: 1; min-width: 0; }
+.snd-row .switch { margin-right: 2px; }

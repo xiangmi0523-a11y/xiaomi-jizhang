@@ -82,6 +82,7 @@
 
   A.tab = el => {
     const from = TAB_ORDER.indexOf(App.tab === 'assets' ? 'mine' : App.tab), to = TAB_ORDER.indexOf(el.dataset.t);
+    if (from !== to && App.sound) App.sound.tap();   // 轻轻的「啵」
     if (el.dataset.t === 'inn' && App.inn && App.inn.onEnter) App.inn.onEnter();
     App.tab = el.dataset.t;
     document.getElementById('tabbar').classList.remove('mini');

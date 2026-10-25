@@ -245,6 +245,7 @@
     if (lv === f) return;
     st().flag = { d: today, lv };
     App.flush();
+    if (lv > f && App.sound) App.sound.warn();   // 今天刚超出额度：低沉的「咚——咚」
     if (lv === 2 && f < 2) SB.nudge('喵呜，客栈要破产啦，今天少花点钱吧！');
     else if (lv === 1 && f < 1) UI.toast(`今天已经超出额度 ¥${money(-t.left)} 啦，明天的额度会自动调低`, 2600);
   };
