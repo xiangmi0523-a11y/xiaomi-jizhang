@@ -70,9 +70,16 @@ jobs:
         with:
           node-version: 22
       - name: 数据库协议与并发测试
-        run: node tests/db/run.mjs
+        run: |
+          set -o pipefail
+          node tests/db/run.mjs 2>&1 | tee "$RUNNER_TEMP/db.log"
+          echo "::notice title=数据库协议测试::$(grep -E '^# (tests|pass|fail)' "$RUNNER_TEMP/db.log" | tr '\n' ' ') $(grep -E '临时 PostgreSQL|使用现成' "$RUNNER_TEMP/db.log" | head -1)"
+          psql "$XM_PG_URL" -X -A -t -c 'show server_version' | sed 's/^/::notice title=PostgreSQL 版本::/'
       - name: SQL 变异测试（每道防护拆掉后，对应测试必须失败）
-        run: node tests/db/mutate.mjs
+        run: |
+          set -o pipefail
+          node tests/db/mutate.mjs 2>&1 | tee "$RUNNER_TEMP/mut.log"
+          echo "::notice title=SQL 变异测试::$(grep -E '^变异' "$RUNNER_TEMP/mut.log")"
 
   # 恢复协议（H3）：在 Supabase 官方 CLI 起的本地服务栈上做冒烟测试（真实网关、认证、PostgREST、postgres 角色）
   supabase-stack:
@@ -99,11 +106,13 @@ jobs:
           set -a; . "$RUNNER_TEMP/sb.env"; set +a
           psql "$DB_URL" -X -q -v ON_ERROR_STOP=1 -f supabase/schema.sql
           psql "$DB_URL" -X -q -v ON_ERROR_STOP=1 -f supabase/restore_epoch.sql
-          psql "$DB_URL" -X -A -t -c "select version(), (select rolbypassrls from pg_roles where rolname = current_user)"
+          echo "::notice title=Supabase 服务栈::CLI $(supabase --version) · $(psql "$DB_URL" -X -A -t -c "select current_user || ' rolbypassrls=' || (select rolbypassrls from pg_roles where rolname = current_user) || ' · ' || version()")"
       - name: 冒烟测试
         run: |
           set -a; . "$RUNNER_TEMP/sb.env"; set +a
-          node --test tests/db/supabase-stack-smoke.mjs
+          set -o pipefail
+          node --test tests/db/supabase-stack-smoke.mjs 2>&1 | tee "$RUNNER_TEMP/smoke.log"
+          echo "::notice title=Supabase 冒烟测试::$(grep -E '^# (tests|pass|fail)' "$RUNNER_TEMP/smoke.log" | tr '\n' ' ')"
       - name: 停止服务栈
         if: always()
         run: cd "$RUNNER_TEMP/sb" && supabase stop --no-backup || true
