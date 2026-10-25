@@ -1,0 +1,45 @@
+name: 下载猫咪录音（CC0）
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 安装 ffmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg >/dev/null
+      - name: 下载 CC0 录音并转换成 mp3
+        run: |
+          set -e
+          mkdir -p assets-src/sounds/raw assets-src/sounds/mp3
+          cd assets-src/sounds/raw
+          dl() { curl -fsSL -A "Mozilla/5.0" -o "$1" "$2" || echo "下载失败: $2"; }
+          # OpenGameArt · AntumDeluge · CC0
+          dl kitten_mew-1.wav       https://opengameart.org/sites/default/files/kitten_mew-1.wav
+          # OpenGameArt · Kerzoven · CC0
+          dl cat_mewfood.wav        https://opengameart.org/sites/default/files/cat_mewfood.wav
+          dl cat_mewpurr.wav        https://opengameart.org/sites/default/files/cat_mewpurr.wav
+          dl cat_mewpurr2.wav       https://opengameart.org/sites/default/files/cat_mewpurr2.wav
+          dl cat_softmew.wav        https://opengameart.org/sites/default/files/cat_softmew.wav
+          dl cat_purrsleepy_loop.wav https://opengameart.org/sites/default/files/cat_purrsleepy_loop.wav
+          dl cat_purractive_loop.wav https://opengameart.org/sites/default/files/cat_purractive_loop.wav
+          # BigSoundBank · Joseph SARDIN · CC0
+          dl bsb_0098.mp3           "https://bigsoundbank.com/UPLOAD/mp3/0098.mp3"
+          ls -la
+          for f in *; do
+            [ -s "$f" ] || continue
+            n="${f%.*}"
+            ffmpeg -hide_banner -loglevel error -y -i "$f" -ac 1 -ar 44100 -c:a libmp3lame -b:a 128k "../mp3/$n.mp3" || true
+            ffmpeg -hide_banner -loglevel error -y -i "$f" -ac 1 -ar 22050 "../mp3/$n.preview.wav" || true
+            ffprobe -v error -show_entries format=duration -of csv=p=0 "$f" | xargs echo "$f 时长"
+          done
+          ls -la ../mp3
+      - name: 提交
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898333+github-actions[bot]@users.noreply.github.com"
+          git add assets-src/sounds
+          git commit -m "下载 CC0 猫咪录音（OpenGameArt / BigSoundBank）[skip ci]" || echo "没有变化"
+          git push
