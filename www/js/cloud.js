@@ -338,6 +338,7 @@
       stat.up++;
     }
     sm.init = true;
+    sm.base = JSON.parse(JSON.stringify(stateOut()));   // 这次同步后本机和云端一致的样子（对齐时用来找出本机改过哪些模块）
     return changedLocal;
   };
 
@@ -374,11 +375,74 @@
     }
   };
 
-  // 与云端对齐（Phase 2B-2 实现）：在此之前一律不写
-  C.rebase = async () => {
-    const e = new Error('账本已在另一台设备恢复过备份，需要先与云端对齐');
-    e.code = 'xm_need_rebase'; throw e;
+  const clone = o => JSON.parse(JSON.stringify(o));
+  // 本机相对「上次同步时的样子」有哪些没传上去的修改：新增、修改、删除，以及整块设置里改过的模块
+  C.pendingChanges = () => {
+    const m = meta(), out = [];
+    TABLES.forEach(t => {
+      const tm = (m.t && m.t[t.name]) || { h: {} }, base = tm.h || {}, present = new Set();
+      t.list().forEach(item => {
+        const row = t.toRow(item), k = row[t.key]; present.add(k);
+        const h = rowHash(t, row);
+        if (base[k] === undefined) out.push({ table: t.name, key: k, kind: 'add', local: clone(item) });
+        else if (base[k] !== h) out.push({ table: t.name, key: k, kind: 'edit', local: clone(item) });
+      });
+      Object.keys(base).forEach(k => { if (!present.has(k)) out.push({ table: t.name, key: k, kind: 'delete' }); });
+    });
+    const sm = m.t && m.t.xm_state;
+    if (sm && sm.init && hash(JSON.stringify(stateOut())) !== sm.h) {
+      const cur = stateOut();
+      Object.keys(cur).forEach(mod => {
+        if (!sm.base || JSON.stringify(cur[mod]) !== JSON.stringify(sm.base[mod])) out.push({ table: 'xm_state', key: mod, kind: 'state', local: clone(cur[mod]) });
+      });
+    }
+    return out;
   };
+
+  // 与云端对齐：账本在别处恢复过（云端版本号比本机新）
+  //   1) 先给本机整份账本存快照（失败就停下，本机不动）
+  //   2) 全量拉取云端（这一步不改本机）；拉完再确认版本号没又变
+  //   3) 在同一段同步代码里：重新找出未同步的修改（包括拉取期间新记的）→ 放进冲突箱并确认写入 → 用云端覆盖本机
+  //   4) 记下新版本号；和云端一样的冲突项自动关闭
+  C.rebase = async stat => {
+    const target = C.serverEpoch, m0 = meta(), from = Number.isInteger(m0.epoch) ? m0.epoch : null;
+    const batch = SB.user().id + ':' + target;
+    App.conflicts.snapshot(batch);
+    const pulled = [];
+    for (const t of TABLES) pulled.push([t, await pullSince(t, '')]);
+    const st = await SB.select('xm_state', 'select=data,updated_at');
+    const check = await SB.readMeta();
+    stillSameUser();
+    if (check.epoch !== target) { const e = new Error('对齐期间账本又被恢复了一次，稍后会重新对齐'); e.code = 'xm_rebase_moved'; throw e; }
+
+    const pending = C.pendingChanges();
+    App.conflicts.protect(batch, { src: 'rebase', from, to: target }, pending);   // 写不进去会抛错 → 下面不会执行
+    let down = 0;
+    pulled.forEach(([t, rows]) => {
+      const tm = { since: '', h: {}, init: true }, list = [];
+      rows.forEach(w => {
+        tm.since = later(tm.since, w.updated_at);
+        if (w.deleted) return;
+        const item = t.fromRow(w); list.push(item);
+        tm.h[w[t.key]] = rowHash(t, t.toRow(item));
+      });
+      t.write(list); meta().t[t.name] = tm; down += list.length;
+    });
+    const w = st && st[0];
+    if (w) {
+      stateIn(w.data || {});
+      meta().t.xm_state = { since: w.updated_at, rh: hash(JSON.stringify(w.data || {})), h: hash(JSON.stringify(stateOut())), base: clone(stateOut()), init: true };
+    } else meta().t.xm_state = { since: '', h: '', rh: '', init: false };   // 云端没有整块设置：下次普通同步把本机的传上去
+    meta().epoch = target;
+    App.conflicts.prune(batch);
+    stat.down += down;
+    const n = App.conflicts.pending().length;
+    UI.toast(n ? `账本已在另一台设备恢复过备份，已和云端对齐；有 ${n} 条本机修改放进了冲突箱，等你处理` : '账本已在另一台设备恢复过备份，已和云端对齐', n ? 4800 : 2600);
+    return true;
+  };
+
+  // 给 conflicts.js / restore.js 用的同步工具（只读使用，不要在别处另包一层）
+  C.kit = { TABLES, LOCAL_ONLY, rowHash, hash, stateOut, stateIn, pullSince, later, meta };
 
   let again = false, timer = null;
   C.sync = async (manual) => {
@@ -436,9 +500,10 @@
   };
   C.status = () => {
     if (!SB.user()) return '未登录';
+    const n = App.conflicts ? App.conflicts.pending().length : 0, box = n ? ` · 冲突箱 ${n} 条` : '';
     if (C.busy) return '同步中…';
-    if (C.err) return '同步失败';
-    return when(App.S.sync && App.S.sync.at);
+    if (C.err) return '同步失败' + box;
+    return when(App.S.sync && App.S.sync.at) + box;
   };
 
   let sheet = null;
@@ -465,6 +530,7 @@
             <div class="cl-who"><b>${esc(u.email || '已登录')}</b><span class="${C.err ? 'r' : ''}">${esc(C.status())}</span></div></div>
           ${C.err ? `<p class="hint cl-err">${esc(C.err)}</p>` : ''}
           ${last ? `<p class="hint">上次：上传 ${last.up} · 下载 ${last.down}${last.del ? ' · 删除 ' + last.del : ''}</p>` : ''}
+          ${App.conflicts && App.conflicts.pending().length ? `<button class="field cl-toggle" data-cl="conflicts"><span>冲突箱：${App.conflicts.pending().length} 条本机修改等你处理</span><span>›</span></button>` : ''}
           <button class="btn primary wide" data-cl="sync" ${C.busy ? 'disabled' : ''}>${C.busy ? '同步中…' : '立即同步'}</button>
           <button class="field cl-toggle" data-cl="auto"><span>有改动时自动同步</span><span class="switch${App.S.settings.cloudAuto === false ? '' : ' on'}"><i></i></span></button>
           <p class="hint">在任何一台手机上登录同一个账号，账单会自动合并。两台手机同时改了同一笔，以最后同步的那台为准。${m.at ? '' : '第一次同步会把这台手机里的全部数据上传。'}</p>
@@ -491,6 +557,7 @@
               await C.sync(true);
             } catch (er) { UI.toast(er.message || '失败了，再试一次', 3200); h.update(); }
           } else if (a === 'sync') C.sync(true);
+          else if (a === 'conflicts') A.openConflicts();
           else if (a === 'auto') { App.S.settings.cloudAuto = App.S.settings.cloudAuto === false; App.changed(); h.update(); }
           else if (a === 'out') {
             await A.logout(); if (!sheet || sheet.closed) return; h.update();

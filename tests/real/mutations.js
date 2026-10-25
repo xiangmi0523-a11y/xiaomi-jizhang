@@ -6,5 +6,12 @@ module.exports = [
   { name: '版本号落后时直接采用云端版本号（跳过对齐）', grep: '恰好被另一台设备恢复', edits: [['js/cloud.js', "if (Number.isInteger(m.epoch)) return m.epoch === r.epoch ? 'normal' : 'rebase';", "if (Number.isInteger(m.epoch)) { m.epoch = r.epoch; return 'normal'; }"]] },
   { name: '409 后不暂停、一直自动重试', grep: '请求头没送到服务器', edits: [['js/cloud.js', "      C.halted = 'epoch-header';", "      clearTimeout(timer); timer = setTimeout(() => C.sync(false), 300);"]] },
   { name: '换账号时不清除暂停状态', grep: '换了账号', edits: [['js/cloud.js', "if (before !== after && App.cloud) { App.cloud.halted = ''; App.cloud.staleRetry = 0; App.cloud.proto = null; }", '']] },
+  { name: '对齐前不存快照', grep: '本机快照没写成功', edits: [['js/cloud.js', '    App.conflicts.snapshot(batch);\n', '']] },
+  { name: '对齐时不把未同步修改放进冲突箱', grep: '全部原样进冲突箱', edits: [['js/cloud.js', "    App.conflicts.protect(batch, { src: 'rebase', from, to: target }, pending);", '']] },
+  { name: '冲突箱写入失败时不回滚', grep: '冲突箱写不进去', edits: [['js/conflicts.js', '    catch (e) { App.S.conflicts = keep; throw', '    catch (e) { throw']] },
+  { name: '冲突处理不幂等', grep: '冲突箱重复处理', edits: [['js/conflicts.js', "    if (!c || c.status !== 'pending') return false;", '    if (!c) return false;']] },
+  { name: '加回去时触发记账奖励', grep: '冲突箱重复处理', edits: [['js/conflicts.js', "    if (action === 'apply') applyItem(c);", "    if (action === 'apply') { applyItem(c); if (c.table === 'xm_records' && c.kind !== 'delete') App.game.rewardRecord(null, c.local); }"]] },
+  { name: '整块设置不看基线（所有模块都进冲突箱）', grep: '整块设置', edits: [['js/cloud.js', 'if (!sm.base || JSON.stringify(cur[mod]) !== JSON.stringify(sm.base[mod]))', 'if (true)']] },
+  { name: '拉取期间新记的账不重新收集', grep: '两台设备并发', edits: [['js/cloud.js', "    const pending = C.pendingChanges();\n    App.conflicts.protect", "    const pending = early;\n    App.conflicts.protect"], ['js/cloud.js', '    App.conflicts.snapshot(batch);\n', '    App.conflicts.snapshot(batch);\n    const early = C.pendingChanges();\n']] },
   { name: '暂停后自动同步照样进行', grep: '请求头没送到服务器', edits: [['js/cloud.js', 'if (C.halted && !manual) return false;', '']] }
 ];

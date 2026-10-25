@@ -124,7 +124,8 @@
   // 「我的」页的退出登录
   A.logout = async () => {
     if (!SB().user()) { G.show(); return; }
-    const ok = await UI.confirm({ title: '退出登录？', msg: '退出前会先同步一次。退出后这台手机上的账本会清空（云端的数据还在），重新登录就会回来。', ok: '退出登录', danger: true });
+    const box = App.conflicts ? App.conflicts.pending().length : 0;   // 冲突箱里的修改只在这台手机上，退出会一起清空
+    const ok = await UI.confirm({ title: '退出登录？', msg: '退出前会先同步一次。退出后这台手机上的账本会清空（云端的数据还在），重新登录就会回来。' + (box ? ` 冲突箱里还有 ${box} 条没处理的本机修改，退出后会一起清空（App 内会留一份操作前备份）。` : ''), ok: '退出登录', danger: true });
     if (!ok) return;
     UI.toast('正在同步…', 1500);
     await App.cloud.sync(false);

@@ -55,7 +55,10 @@ test('写入时账本恰好被另一台设备恢复（409）：立即停止写�
   expect(writes[0].status).toBe(409);
   expect(gw.log.some(l => l.uid === uid && l.t > writes[0].t && l.path === '/rest/v1/xm_meta')).toBe(true);
   expect(gw.db.live(uid)).toEqual(['x1']);
-  expect(await js(page, 'App.S.records.some(r => r.note === "恢复时正在记的")')).toBe(true);   // 本机的修改还在
+  // 2B-2 起：发现 epoch 变化会先把本机未同步的修改放进冲突箱，再与云端对齐；这笔账不会丢，原始内容完整保留、等用户处理
+  await page.waitForFunction(() => window.App.S.sync.epoch === 1 && !window.App.cloud.busy);
+  expect(await js(page, 'App.conflicts.pending().filter(c => c.table === "xm_records" && c.kind === "add" && c.local && c.local.note === "恢复时正在记的").length')).toBe(1);
+  expect(await js(page, 'App.S.records.map(r => r.note)')).toEqual(['备份x1']);
 });
 
 test('版本号请求头没送到服务器（409 但版本号没变）：暂停自动同步、提示明确；只有手动同步才再试一次', async ({ openApp, gw }) => {

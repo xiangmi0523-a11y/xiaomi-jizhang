@@ -1707,3 +1707,15 @@ html.web #page::-webkit-scrollbar { display: none; }
 .snd-try button:active { transform: scale(.92); }
 .snd-row > span:first-child { flex: 1; min-width: 0; }
 .snd-row .switch { margin-right: 2px; }
+
+/* ===== v4.8 冲突箱（恢复对齐前未同步的本机修改） ===== */
+.cf-list { gap: 10px; }
+.cf-bulk { display: flex; gap: 8px; }
+.cf-bulk .btn { flex: 1; }
+.cf-item { background: var(--card); border-radius: 16px; padding: 12px; box-shadow: 0 0 0 1.5px var(--edge, var(--line)); display: flex; flex-direction: column; gap: 10px; }
+.cf-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cf-main b { font-size: 15px; }
+.cf-main small { color: var(--sub); font-size: 12px; overflow-wrap: anywhere; }
+.cf-kind { align-self: flex-start; font-size: 11px; font-weight: 700; color: var(--accent-strong); background: var(--accent-soft, rgba(255, 197, 61, .18)); border-radius: 8px; padding: 1px 8px; }
+.cf-btns { display: flex; gap: 8px; }
+.cf-btns .btn { flex: 1; min-height: 38px; }
