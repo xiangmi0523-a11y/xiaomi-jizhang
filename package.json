@@ -1,0 +1,12 @@
+{
+  "name": "xiaomi-jizhang-tests",
+  "private": true,
+  "description": "晓米记账 / 晓米客栈 的自动化回归测试（只用于开发和 CI，不进 App 和网页）",
+  "scripts": {
+    "test": "playwright test",
+    "test:list": "playwright test --list"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.0"
+  }
+}

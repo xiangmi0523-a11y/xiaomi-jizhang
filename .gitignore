@@ -5,3 +5,9 @@ Payload/
 .DS_Store
 tools/icon-1024.png
 __pycache__/
+
+# 测试（npm / Playwright）
+node_modules/
+test-results/
+playwright-report/
+blob-report/

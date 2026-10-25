@@ -1,0 +1,49 @@
+name: 回归测试
+
+# 只跑测试：不打包 IPA、不发布 Release、不部署、不连接真实 Supabase、不需要任何密钥
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: 检查所有前端脚本语法
+        run: for f in www/js/*.js www/sw.js; do node --check "$f" || exit 1; done
+
+      - name: 安装测试依赖（只装 @playwright/test，开发依赖）
+        run: npm install --no-audit --no-fund
+
+      - name: 安装 Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: 运行回归测试
+        run: npx playwright test
+
+      - name: 上传测试报告
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+          if-no-files-found: ignore
