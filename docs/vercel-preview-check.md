@@ -14,7 +14,7 @@
 | 访问保护 | `ssoProtection`（Vercel 登录保护）：**关闭**；`passwordProtection`（密码保护）：**关闭**；`trustedIps`（IP 白名单）：**关闭** | 项目设置 |
 | 环境变量 | 没有（0 个） | Vercel API（只列名字，没有解密） |
 | 后端配置 | Supabase 地址 `https://vpgqzdkpoidudibsquhx.supabase.co` 和公开密钥（publishable key）**写死在 `www/js/cloud.js` 里**，不区分环境 | 仓库代码 |
-| 有没有 `vercel.json` | 没有（默认设置：每个分支每次推送都自动部署） | 仓库 |
+| `vercel.json` | 只有 `www/vercel.json`（项目根目录是 `www/`），里面只配置了缓存和安全响应头，**没有** `git.deploymentEnabled`：每个分支每次推送都自动部署 | 仓库 |
 
 **没能直接验证的：** 在本会话里从公网匿名打开预览链接，被会话的网络白名单挡住了。Vercel 自带的抓取工具会在部署上创建临时分享链接，相当于新建一个访问凭据，未经批准**没有使用**。「任何拿到链接的人都能打开」这个结论，依据是项目设置里三种保护都关闭；**在真机或电脑浏览器的无痕窗口里打开分支别名，可以直接确认**（见第 4 节第 1 步）。
 
@@ -34,7 +34,7 @@
 | 方案 | 做法 | 效果 | 影响和代价 |
 |---|---|---|---|
 | **P1（推荐先做）开启 Vercel 登录保护（Standard Protection）** | Vercel 控制台 → 项目 → Settings → Deployment Protection → Vercel Authentication 选「Standard Protection」；或者 API 把 `ssoProtection` 设为 `{ deploymentType: "preview" }` | 所有预览部署和分支别名都要先登录 Vercel 账号（并且是团队成员）才能打开 | **不影响生产域名** `xiaomi-jizhang.vercel.app` / `xiaomi-jizhang-app.vercel.app`（它们仍是公开的网页版）。Hobby 方案就能用，可以随时关掉。改的是项目设置，所以需要批准 |
-| P2 功能分支不自动部署 | 仓库加 `vercel.json`：`{"git":{"deploymentEnabled":{"main":true,"*":false}}}`，或在控制台设置「Ignored Build Step」 | 以后功能分支推送不再生成预览 | `vercel.json` 是代码改动：放在功能分支上会马上对这个分支生效；合并后对所有分支生效。已经存在的预览部署还在，仍然需要 P1 或 P3 |
+| P2 功能分支不自动部署 | 在 `www/vercel.json` 里加：`{"git":{"deploymentEnabled":{"main":true,"*":false}}}`，或在控制台设置「Ignored Build Step」 | 以后功能分支推送不再生成预览 | `vercel.json` 是代码改动：放在功能分支上会马上对这个分支生效；合并后对所有分支生效。已经存在的预览部署还在，仍然需要 P1 或 P3 |
 | P3 删除已有的预览部署 | 控制台或 API 逐个删除 `feat/h3-frontend` 的部署 | 旧链接失效 | 不可恢复，需要批准；之后的新推送仍然会生成新的预览，除非同时做 P2 |
 | P4 预览站连测试用的 Supabase | 把 Supabase 配置改成按域名或环境区分，预览站连一个独立的测试项目 | 预览站碰不到生产数据 | 代码改动 + 新建 Supabase 项目 + 维护测试数据；工作量最大，本阶段不建议 |
 | P5 密码保护 / IP 白名单 | Deployment Protection 里的 Password Protection / Trusted IPs | 同 P1 | 需要付费方案（Pro 附加功能或 Enterprise） |

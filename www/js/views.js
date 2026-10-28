@@ -82,6 +82,8 @@
     const sums = App.sum(recs);
     const budHTML = App.budget.heroHTML(sums.expense);
     const D = UI.deco, bal = sums.income - sums.expense;
+    // 猫咪财务点评：只在看本月时出现（App.critic 只读数据）
+    const ck = App.critic && H.ym === U.curYM() ? App.critic.now() : null;
     const hero = `<div class="hero home3">
       <div class="t3"><span class="t3-d l">${D.pawLine()}</span><h1 class="t3-title">晓米记账</h1><span class="t3-d r">${D.heart()}</span></div>
       <div class="hero-top">
@@ -99,8 +101,9 @@
             <span class="hm-tag">本月支出${D.paw()}</span>
             <div class="hm-big"><small>¥</small>${money(sums.expense)}</div>
             <div class="hm-n">共 ${recs.length} 笔${recs.length ? ' · 最近一笔 ' + U.dayLabel(recs[0].date) : ''}</div>
+            ${ck ? App.critic.bubbleHTML(ck) : ''}
           </div>
-          <div class="hm-cat"><span class="hm-heart">${D.heart()}</span>${App.catArt.svg(App.budget.catId(), { w: 112, mood: 'happy' })}<span class="hm-purse">${D.purse()}</span></div>
+          <div class="hm-cat"><span class="hm-heart">${D.heart()}</span>${App.catArt.svg(App.budget.catId(), { w: 112, mood: ck ? App.critic.mood(ck) : 'happy' })}<span class="hm-purse">${D.purse()}</span></div>
         </div>
         <div class="hm-foot">${D.wave('hm-wave')}
           <div class="hm-f"><i>${D.coins()}</i><span><small>收入</small><b>¥${money(sums.income)}</b></span></div>
