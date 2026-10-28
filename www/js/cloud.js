@@ -404,10 +404,11 @@
   //   2) 全量拉取云端（这一步不改本机）；拉完再确认版本号没又变
   //   3) 在同一段同步代码里：重新找出未同步的修改（包括拉取期间新记的）→ 放进冲突箱并确认写入 → 用云端覆盖本机
   //   4) 记下新版本号；和云端一样的冲突项自动关闭
-  C.rebase = async stat => {
+  // info（可选，restore.js 在自己的恢复生效后提供）：{ src: 'import', label: 快照名, toast: n => 提示 }
+  C.rebase = async (stat, info) => {
     const target = C.serverEpoch, m0 = meta(), from = Number.isInteger(m0.epoch) ? m0.epoch : null;
     const batch = SB.user().id + ':' + target;
-    App.conflicts.snapshot(batch);
+    App.conflicts.snapshot(batch, info && info.label);
     const pulled = [];
     for (const t of TABLES) pulled.push([t, await pullSince(t, '')]);
     const st = await SB.select('xm_state', 'select=data,updated_at');
@@ -416,7 +417,7 @@
     if (check.epoch !== target) { const e = new Error('对齐期间账本又被恢复了一次，稍后会重新对齐'); e.code = 'xm_rebase_moved'; throw e; }
 
     const pending = C.pendingChanges();
-    App.conflicts.protect(batch, { src: 'rebase', from, to: target }, pending);   // 写不进去会抛错 → 下面不会执行
+    App.conflicts.protect(batch, { src: (info && info.src) || 'rebase', from, to: target }, pending);   // 写不进去会抛错 → 下面不会执行
     let down = 0;
     pulled.forEach(([t, rows]) => {
       const tm = { since: '', h: {}, init: true }, list = [];
@@ -437,7 +438,7 @@
     App.conflicts.prune(batch);
     stat.down += down;
     const n = App.conflicts.pending().length;
-    UI.toast(n ? `账本已在另一台设备恢复过备份，已和云端对齐；有 ${n} 条本机修改放进了冲突箱，等你处理` : '账本已在另一台设备恢复过备份，已和云端对齐', n ? 4800 : 2600);
+    UI.toast(info && info.toast ? info.toast(n) : n ? `账本已在另一台设备恢复过备份，已和云端对齐；有 ${n} 条本机修改放进了冲突箱，等你处理` : '账本已在另一台设备恢复过备份，已和云端对齐', n ? 4800 : 2600);
     return true;
   };
 
@@ -454,17 +455,25 @@
     const stat = { up: 0, down: 0, del: 0 };
     let changed = false;
     try {
-      // 1) 先确认账本版本号：每次同步（登录、启动、回到前台、改动后的自动同步、手动同步）都经过这里
-      const mode = await C.checkEpoch();
-      if (mode === 'rebase') changed = await C.rebase(stat);
-      else {
-        for (const t of TABLES) changed = (await syncTable(t, stat)) || changed;
-        changed = (await syncState(stat)) || changed;
+      // 0) 这台手机有没完成的备份恢复（restore.js）：先把它推进完。还没生效（上传中、等你确认…）就不做普通同步，
+      //    免得把恢复前的云端数据拉回本机；生效了就接着往下，由下面的版本号检查触发对齐
+      const R = App.restore;
+      const go = R && R.pending() ? await R.step() : true;
+      if (go) {
+        // 1) 先确认账本版本号：每次同步（登录、启动、回到前台、改动后的自动同步、手动同步）都经过这里
+        const mode = await C.checkEpoch();
+        if (mode === 'rebase') changed = await C.rebase(stat, R && R.rebaseInfo());
+        else {
+          for (const t of TABLES) changed = (await syncTable(t, stat)) || changed;
+          changed = (await syncState(stat)) || changed;
+        }
+        meta().at = Date.now();
+        C.last = stat;
+        if (R) R.synced();
       }
-      meta().at = Date.now();
-      C.last = stat;
       C.halted = ''; C.staleRetry = 0;
-      if (manual) UI.toast(stat.up + stat.down + stat.del ? `同步完成：上传 ${stat.up} · 下载 ${stat.down}${stat.del ? ' · 删除 ' + stat.del : ''}` : '已经是最新的了', 2200, 'gold');
+      if (manual && !go) UI.toast('备份恢复还没完成：' + ((R.status() || {}).text || '请稍候'), 3200);
+      else if (manual) UI.toast(stat.up + stat.down + stat.del ? `同步完成：上传 ${stat.up} · 下载 ${stat.down}${stat.del ? ' · 删除 ' + stat.del : ''}` : '已经是最新的了', 2200, 'gold');
     } catch (e) {
       C.err = e.message || String(e);
       if (e.stale) await C.onStale();                           // 409：账本版本号过期
@@ -501,6 +510,8 @@
   C.status = () => {
     if (!SB.user()) return '未登录';
     const n = App.conflicts ? App.conflicts.pending().length : 0, box = n ? ` · 冲突箱 ${n} 条` : '';
+    const rs = App.restore && App.restore.pending() && App.restore.status();
+    if (rs) return '恢复备份：' + rs.short + box;
     if (C.busy) return '同步中…';
     if (C.err) return '同步失败' + box;
     return when(App.S.sync && App.S.sync.at) + box;
@@ -530,6 +541,7 @@
             <div class="cl-who"><b>${esc(u.email || '已登录')}</b><span class="${C.err ? 'r' : ''}">${esc(C.status())}</span></div></div>
           ${C.err ? `<p class="hint cl-err">${esc(C.err)}</p>` : ''}
           ${last ? `<p class="hint">上次：上传 ${last.up} · 下载 ${last.down}${last.del ? ' · 删除 ' + last.del : ''}</p>` : ''}
+          ${App.restore && App.restore.pending() ? `<button class="field cl-toggle" data-cl="restore"><span>恢复备份：${esc(App.restore.status().short)}</span><span>›</span></button>` : ''}
           ${App.conflicts && App.conflicts.pending().length ? `<button class="field cl-toggle" data-cl="conflicts"><span>冲突箱：${App.conflicts.pending().length} 条本机修改等你处理</span><span>›</span></button>` : ''}
           <button class="btn primary wide" data-cl="sync" ${C.busy ? 'disabled' : ''}>${C.busy ? '同步中…' : '立即同步'}</button>
           <button class="field cl-toggle" data-cl="auto"><span>有改动时自动同步</span><span class="switch${App.S.settings.cloudAuto === false ? '' : ' on'}"><i></i></span></button>
@@ -558,6 +570,7 @@
             } catch (er) { UI.toast(er.message || '失败了，再试一次', 3200); h.update(); }
           } else if (a === 'sync') C.sync(true);
           else if (a === 'conflicts') A.openConflicts();
+          else if (a === 'restore') A.openRestore();
           else if (a === 'auto') { App.S.settings.cloudAuto = App.S.settings.cloudAuto === false; App.changed(); h.update(); }
           else if (a === 'out') {
             await A.logout(); if (!sheet || sheet.closed) return; h.update();

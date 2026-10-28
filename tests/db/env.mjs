@@ -79,10 +79,13 @@ alter role anon set statement_timeout = '3s';
       psql(dbUrl(name), '', { file: EMU });
       psql(dbUrl(name, 'xm_owner'), '', { file: SCHEMA });
       if (withMigration) psql(dbUrl(name, 'xm_owner'), '', { file: migration });
+      // 只用于评估「待审核的数据库提案」（例如 supabase/proposals/*.sql）：默认不加载
+      if (withMigration && process.env.XM_EXTRA_SQL) psql(dbUrl(name, 'xm_owner'), '', { file: path.resolve(ROOT, process.env.XM_EXTRA_SQL) });
     };
     makeDb('xm_base', false);
     makeDb('xm_prot', true);
     log('迁移文件：', path.relative(ROOT, migration));
+    if (process.env.XM_EXTRA_SQL) log('额外加载（待审核提案）：', process.env.XM_EXTRA_SQL);
 
     const pgrst = execFileSync(path.join(HERE, 'get-postgrest.sh'), { encoding: 'utf8' }).trim().split('\n').pop();
     const startRest = async db => {

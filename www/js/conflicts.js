@@ -30,12 +30,12 @@
   const fail = (code, msg) => { const e = new Error(msg); e.code = code; return e; };
 
   // 1) 覆盖本机之前：整份账本存一份快照。localStorage 写入失败就抛错，调用方不得继续覆盖
-  X.snapshot = id => {
+  X.snapshot = (id, label) => {
     const data = JSON.stringify(App.S);
     try { localStorage.setItem(SNAP_KEY, JSON.stringify({ id, at: Date.now(), data })); }
     catch (e) { throw fail('xm_snapshot_failed', '手机存储空间不足，没能先保存本机账本，已暂停与云端对齐（本机数据没有改动）'); }
     const d = new Date();
-    App.native('snapshot', { filename: `晓米记账-对齐前备份-${U.today()}-${U.pad(d.getHours())}${U.pad(d.getMinutes())}${U.pad(d.getSeconds())}.json`, content: data });
+    App.native('snapshot', { filename: `晓米记账-${label || '对齐前备份'}-${U.today()}-${U.pad(d.getHours())}${U.pad(d.getMinutes())}${U.pad(d.getSeconds())}.json`, content: data });
   };
   X.lastSnapshot = () => { try { return JSON.parse(localStorage.getItem(SNAP_KEY) || 'null'); } catch (e) { return null; } };
 

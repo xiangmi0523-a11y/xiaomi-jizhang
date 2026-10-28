@@ -31,7 +31,7 @@ GitHub Actions：`.github/workflows/tests.yml`，任何分支推送、PR 都会�
 | `04-record-flow` | 通过界面记支出 / 收入 / 转账、算式、校验提示、连点防重复、金币奖励 / 不重复奖励 / 删除收回、每日上限、签到 |
 | `05-recurring-lock` | 单设备周期记账补记、不重复、月底、停用；密码锁解锁、输错 5 次锁 30 秒、切后台上锁、不存明文 |
 | `06-cloud-mock` | （假 Supabase）请求头、首次上传、两台设备双向同步与删除、空同步、账号隔离与越权写入被拒、错误提示、令牌刷新、自动同步、断网、登录门注册 / 退出、换账号、原生桥 |
-| `07-known-bugs` | 审计报告的 H1–H4：H1–H3 目前「预期内失败」，修好后会提醒把标记去掉；H4 已修复，是正式断言（含「重置时正好在同步」的情况） |
+| `07-known-bugs` | 审计报告的 H1–H4：H1、H2 目前「预期内失败」，修好后会提醒把标记去掉；H3、H4 已修复，是正式断言（H3 在假 Supabase 上验证「没装恢复协议时拒绝恢复」，完整恢复流程见下面的 `tests/real/30-restore`） |
 
 ## 已知缺陷的写法（07-known-bugs）
 
@@ -64,3 +64,20 @@ XM_PG_URL=postgres://postgres@localhost:5432/postgres node tests/db/run.mjs   # 
 - 并发测试用交互式 psql 会话精确控制两个事务的先后，并检查对方确实在等锁。
 - `supabase-stack-smoke.mjs` 只在 CI 里跑：用 Supabase 官方 CLI 起本地服务栈，经过真实网关和认证再验证一遍。
 - 测试专用的触发器（模拟篡改、崩溃、慢网络）只对单个测试用户生效，测试结束即删除。
+
+## 前端 + 真实数据库端到端 · `tests/real/`（Phase 2B）
+
+浏览器里的 App → 测试网关（模拟 GoTrue、转发 PostgREST，可装钩子：抢先恢复、丢响应、去请求头、注入失败）→ 真实 PostgREST → 真实 PostgreSQL（含 `restore_epoch.sql`）。
+
+```bash
+npx playwright test -c playwright.real.config.js      # 起临时 PostgreSQL + PostgREST，跑全部 tests/real/*.spec.js
+node tests/real/mutate-frontend.js [关键词]            # 前端变异测试：逐个拆掉 www/ 里的一处防护，对应用例必须失败
+XM_BIG_RECORDS=13000 npx playwright test -c playwright.real.config.js -g 大数据量   # 换一个数据量测恢复耗时
+XM_EXTRA_SQL=supabase/proposals/2b3-restore-apply-timeout.sql npx playwright test -c playwright.real.config.js   # 评估待审核的数据库提案
+```
+
+| 文件 | 内容 |
+|---|---|
+| `10-epoch` | 2B-1：没迁移的服务器照常同步、所有写请求带 `x-xm-epoch`、409 处理不无限重试、请求头被去掉时暂停、旧版 App（main 上的前端）被挡住、换账号 |
+| `20-rebase` | 2B-2：另一台设备恢复后，本机快照 → 未同步的新增 / 修改 / 删除 / 整块设置进冲突箱 → 对齐；快照或冲突箱写不进去时不覆盖；并发记账；冲突处理幂等、不重复发奖励 |
+| `30-restore` | 2B-3：通过界面导入备份恢复（H3）；无效备份不发请求；apply 响应丢失后重试同一任务；连点；上传中断 / 封存后被杀再重开；另一台设备抢先恢复（取消 / 继续）；旧备份缺可选模块；恢复前后的本机修改进冲突箱；开始恢复瞬间的自动同步；本机快照写不进去；语句超时；没装协议的服务器；大数据量耗时 |

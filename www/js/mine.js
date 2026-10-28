@@ -342,7 +342,7 @@
         ${row('backupPick', 'data', App.backup.folder() ? '自动备份（已开启）' : '自动备份到 iCloud 云盘', App.backup.status())}
         ${App.backup.folder() ? row('backupNow', 'refresh', '立即备份一次', '点上一行可以换一个文件夹') : ''}
         ${row('dataExport', 'exportI', '导出备份（JSON）', '换手机、重装、更新前先做一份')}
-        <label class="menu-row" for="importFile"><span class="mi">${MI.importI}</span><span class="mt">导入备份<small>用备份文件覆盖当前数据</small></span><span class="mr">${UI.icons.chev}</span></label>
+        <label class="menu-row" for="importFile"><span class="mi">${MI.importI}</span><span class="mt">导入备份<small>${App.supabase.user() ? '用备份替换云端账本，这台手机跟着更新' : '用备份文件覆盖当前数据'}</small></span><span class="mr">${UI.icons.chev}</span></label>
         ${row('dataCsv', 'table', '导出表格（CSV）', '可以用 Excel / WPS 打开')}
         ${row('dataClear', 'trash', '清空所有数据', '会先让你确认')}
       </div><input id="importFile" type="file" accept=".json,application/json,text/plain" hidden>
@@ -355,17 +355,15 @@
             let obj = null;
             try { obj = JSON.parse(String(rd.result)); } catch (er) { obj = null; }
             if (!obj || !Array.isArray(obj.records) || !Array.isArray(obj.accounts)) { UI.toast('这不是有效的晓米记账备份文件', 2600); return; }
-            UI.confirm({ title: '用备份覆盖当前数据？', msg: `备份里有 ${obj.records.length} 笔记录，当前的 ${App.S.records.length} 笔会被替换。`, ok: '覆盖导入', danger: true }).then(ok => {
-              if (!ok) return;
-              App.replaceState(obj); h.close(); UI.toast('导入成功');
-            });
+            A.importBackup(obj);   // restore.js：先校验；登录状态下走云端恢复任务（确认页 → 暂存 → 封存 → 应用 → 对齐）
           };
           rd.readAsText(f); e.target.value = '';
         });
       }
     });
   };
-  A.dataExport = () => { App.backup.markExport(); App.shareFile('晓米记账备份-' + stamp() + '.json', JSON.stringify(App.S), 'application/json'); };
+  // 导出时去掉只属于这台手机的同步记录和冲突箱，并加上校验信息（restore.js）
+  A.dataExport = () => { App.backup.markExport(); App.shareFile('晓米记账备份-' + stamp() + '.json', App.restore.exportText(), 'application/json'); };
   A.dataCsv = () => { App.shareFile('晓米记账-' + stamp() + '.csv', App.csv(), 'text/csv'); };
   A.dataClear = async () => {
     if (!await UI.confirm({ title: '清空所有数据？', msg: '所有记录、账户、预算都会被删除，无法恢复。', ok: '继续', danger: true })) return;

@@ -1,5 +1,7 @@
 # 交接文档：Phase 2B-1 / 2B-2 已完成 → Phase 2B-3 待开发
 
+> **更新：2B-3 已完成，见 `docs/phase2b-report.md`。** 与本文第 3.4 节的一处差异：恢复改为「apply 成功之前本机不动，成功后复用 2B-2 的对齐流程」，原因见报告第 2 节。
+
 > 分支：`feat/h3-frontend`（基于 `feat/h3-restore-protocol`）。**未合并 main，未执行生产迁移，未发布 IPA，未部署。**
 > 服务端协议的权威定义是 `supabase/restore_epoch.sql` 和 `docs/restore-protocol.md`，本文只记录前端如何对接，参数以 SQL 为准。
 

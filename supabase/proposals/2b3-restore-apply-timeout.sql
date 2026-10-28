@@ -1,0 +1,14 @@
+-- =====================================================================
+-- 提案（Phase 2B-3 发现的问题，待架构师审核）：给 xm_restore_apply 单独放宽语句超时
+--
+-- !!! 未批准。不在 restore_epoch.sql 里，不要在生产执行。
+--     只在测试环境里通过 XM_EXTRA_SQL=supabase/proposals/2b3-restore-apply-timeout.sql 加载评估。
+--
+-- 问题：Supabase 的 authenticated 角色默认 statement_timeout = 8s。xm_restore_apply 在一个事务里
+--       存档 + 覆盖 + 软删除 + 双向逐行核对，测试库上约 1.3 万行 5.5s、约 2 万行超过 8s 被取消
+--       （事务整体回滚，云端不变；前端会明确提示「备份太大」并停止自动重试）。
+-- 做法：PostgREST 12 会在调用函数前把函数上设置的 statement_timeout 以事务级（SET LOCAL）生效，
+--       只放宽这一个 RPC，不改角色默认值，其他请求仍受 8s 保护。
+-- 回滚：alter function public.xm_restore_apply(uuid, integer) reset statement_timeout;
+-- =====================================================================
+alter function public.xm_restore_apply(uuid, integer) set statement_timeout = '60s';

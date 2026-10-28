@@ -125,8 +125,10 @@
   A.logout = async () => {
     if (!SB().user()) { G.show(); return; }
     const box = App.conflicts ? App.conflicts.pending().length : 0;   // 冲突箱里的修改只在这台手机上，退出会一起清空
-    const ok = await UI.confirm({ title: '退出登录？', msg: '退出前会先同步一次。退出后这台手机上的账本会清空（云端的数据还在），重新登录就会回来。' + (box ? ` 冲突箱里还有 ${box} 条没处理的本机修改，退出后会一起清空（App 内会留一份操作前备份）。` : ''), ok: '退出登录', danger: true });
+    const rj = App.restore && App.restore.job(), rsOpen = rj && rj.phase !== 'applied';   // 没生效的备份恢复：退出会取消它
+    const ok = await UI.confirm({ title: '退出登录？', msg: '退出前会先同步一次。退出后这台手机上的账本会清空（云端的数据还在），重新登录就会回来。' + (box ? ` 冲突箱里还有 ${box} 条没处理的本机修改，退出后会一起清空（App 内会留一份操作前备份）。` : '') + (rsOpen ? ' 还有一个没完成的备份恢复，退出会取消它（云端不会被改动）。' : ''), ok: '退出登录', danger: true });
     if (!ok) return;
+    if (rj) await App.restore.abandon();
     UI.toast('正在同步…', 1500);
     await App.cloud.sync(false);
     if (App.cloud.err && !await UI.confirm({ title: '同步没成功', msg: '有些改动可能还没传到云端：' + App.cloud.err + '。仍然要退出吗？（App 内会留一份操作前备份）', ok: '仍然退出', danger: true })) return;

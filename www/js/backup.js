@@ -33,7 +33,7 @@
     if (!force && b.at && now - b.at < KEEP_GAP) return;
     busy = true;
     b.sig = s; b.at = now;
-    const content = JSON.stringify(App.S);
+    const content = App.restore ? App.restore.exportText() : JSON.stringify(App.S);   // 与「导出备份」同一种格式：带校验信息，不含同步记录和冲突箱
     App.native('snapshot', { filename: BK.fileName(), content });
     if (BK.folder()) App.native('autoBackup', { filename: BK.fileName(), content });
     busy = false;

@@ -1719,3 +1719,18 @@ html.web #page::-webkit-scrollbar { display: none; }
 .cf-kind { align-self: flex-start; font-size: 11px; font-weight: 700; color: var(--accent-strong); background: var(--accent-soft, rgba(255, 197, 61, .18)); border-radius: 8px; padding: 1px 8px; }
 .cf-btns { display: flex; gap: 8px; }
 .cf-btns .btn { flex: 1; min-height: 38px; }
+
+/* ===== v4.9 备份恢复（确认页、进度） ===== */
+.rs-form { gap: 12px; }
+.rs-box { background: var(--card); border-radius: 16px; padding: 4px 12px; box-shadow: 0 0 0 1.5px var(--edge, var(--line)); }
+.rs-row { display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.rs-row:last-child { border-bottom: 0; }
+.rs-row span { flex: 0 0 72px; color: var(--sub); }
+.rs-row b { flex: 1; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+.rs-warn { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; line-height: 1.5; color: var(--sub); }
+.rs-warn b { color: var(--text); }
+.rs-msg { margin: 0; font-size: 15px; line-height: 1.55; overflow-wrap: anywhere; }
+.rs-msg.err, .rs-msg.ask { color: var(--danger, #e5534b); }
+.rs-msg.warn { color: var(--accent-strong); }
+.rs-bar { height: 8px; border-radius: 8px; background: var(--line); overflow: hidden; }
+.rs-bar i { display: block; height: 100%; background: var(--accent); border-radius: 8px; transition: width .4s ease; }

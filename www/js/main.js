@@ -142,6 +142,7 @@
         const SB = App.supabase;
         if (SB && SB.signOutNow) SB.signOutNow();   // 立即在本机退出（内存 + localStorage），并在后台通知服务器作废令牌
         try { localStorage.removeItem('xm_supabase_session'); } catch (e) { /* ignore */ }
+        if (App.restore) App.restore.clear();   // 没完成的备份恢复任务属于上一个登录，一起清掉
         App.replaceState(null); close(''); UI.toast('已重置');
         if (App.authGate && App.authGate.enabled()) App.authGate.show();   // App / 线上网页：回到登录页，要重新登录才能拿回云端账本
         return;

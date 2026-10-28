@@ -1,5 +1,6 @@
 // 已知缺陷 H1–H4（来自架构审计报告）
-// H4 已在 fix/H4-password-reset 修复，对应测试已改成正式断言；H1–H3 仍未修复。
+// H4 已在 fix/H4-password-reset 修复，H3 已在 feat/h3-frontend 修复（完整恢复流程在 tests/real/30-restore.spec.js 里用真实数据库验证），
+// 对应测试已改成正式断言；H1、H2 仍未修复。
 //
 // 写法：先正常执行准备步骤和前置检查（这些步骤出错，测试会真的失败）；
 // 走到最后一步时调用 test.fail() 声明「下面这条正确行为的断言目前预期会失败」，再按「修好之后应有的正确行为」断言。
@@ -66,20 +67,22 @@ test('已知缺陷 H2：两台设备同时改金币等整体设置，后同步�
   expect(got).toEqual([base + 18, base + 18]);
 });
 
-test('已知缺陷 H3：登录状态下导入旧备份，同步又把备份之后的新账单合并回来', async ({ openApp }) => {
+test('H3（已修复）：登录状态下导入旧备份 —— 走界面；服务器没装恢复协议时直接拒绝，不会出现「导入后同步又把新账单合并回来」', async ({ openApp }) => {
   const A = await openApp({ name: 'A', time: D2 });
   await loginViaSheet(A, EMAIL, PW, { signup: true });
   await manualSync(A);
-  const backup = await js(A, `JSON.stringify(App.S)`);
+  const backup = await js(A, `App.restore.exportText()`);
   await js(A, `(App.addRecord({ type: 'expense', amount: 999, cat: 'e_snack', acc: 'a_cash', to: '', date: '2026-10-21', note: '导出后新增' }), 0)`);
   expect(await syncNow(A)).toBe('');
-  await js(A, `(App.replaceState(JSON.parse(arg)), 0)`, backup);   // 与「数据与备份 → 导入备份 → 覆盖导入」相同的调用
-  expect(await js(A, `App.S.records.some(r => r.note === '导出后新增')`)).toBe(false);   // 刚导入时确实回到了备份
+  // 与用户操作相同：数据与备份 → 导入备份 → 选文件 → 确认页「开始恢复」
+  await js(A, `(App.UI.closeAll(), App.A.openData(), 0)`);
+  await A.setInputFiles('#importFile', { name: 'backup.json', mimeType: 'application/json', buffer: Buffer.from(backup) });
+  await A.click('[data-rs="go"]');
+  await expect(A.locator('#toast')).toContainText('云端还没升级');          // 假 Supabase 没有恢复协议（xm_meta）
+  expect(await js(A, `App.restore.pending()`)).toBe(false);
   expect(await syncNow(A)).toBe('');
-  const back = await js(A, `App.S.records.some(r => r.note === '导出后新增')`);
-
-  test.fail(true, 'H3 未修复：导入的备份在同步后被云端数据合并覆盖');
-  expect(back).toBe(false);
+  // 本机和云端都保持导入前的样子：没有被备份覆盖一半、也没有「覆盖后又合并回来」
+  expect(await js(A, `App.S.records.some(r => r.note === '导出后新增')`)).toBe(true);
 });
 
 test('H4（已修复）：密码锁「忘记密码 → 清空并重置」会退出云端登录，同步不会把账本拉回来', async ({ openApp, cloud }) => {
