@@ -52,5 +52,6 @@ module.exports = [
   { name: '别的账号的快照也允许恢复', grep: 'D5', edits: [['js/safety.js', "      if (owner !== uid) throw fail(", "      if (false) throw fail("]] },
   { name: '网页版快照写不下也当成成功', grep: 'D3 网页版', edits: [['js/durable.js', "    try { localStorage.setItem(SNAP_PREFIX + dir + ':' + name, JSON.stringify({ meta: fullMeta, data: content })); }\n    catch (e) {", "    try { localStorage.setItem(SNAP_PREFIX + dir + ':' + name, JSON.stringify({ meta: fullMeta, data: content })); }\n    catch (e) { return { store: 'local', dir, name, bytes: m.bytes, sha256: m.sha256 };"]] },
   { name: '对齐重试前不再确认账号（等回执时退出登录）', grep: 'C7', edits: [['js/cloud.js', '      stillSameUser();   // 每次（重新）计算前都确认还是同一个账号', '      // stillSameUser();   // 每次（重新）计算前都确认还是同一个账号'], ['js/cloud.js', 'return !!u && u.id === uid && JSON.stringify(App.S) === before;', 'return JSON.stringify(App.S) === before;']] },
+  { name: '拉取分页只按时间排序（并列行顺序不固定）', grep: 'C6', edits: [['js/cloud.js', 'order=updated_at.asc,${t.key}.asc&limit=1000', 'order=updated_at.asc&limit=1000']] },
   { name: '恢复前先把未同步的修改传上去（之后被备份删掉）', grep: '静默丢掉', edits: [['js/restore.js', '      if (!fresh()) {\n', '      if (true) {\n']] }
 ];

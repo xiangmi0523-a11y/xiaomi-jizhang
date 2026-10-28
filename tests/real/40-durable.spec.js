@@ -278,8 +278,12 @@ test('C6 大账本（4 万笔，超过 localStorage 上限）：原生快照和�
   const t0 = Date.now();
   expect(await syncNow(B)).toBe('');
   const ms = Date.now() - t0;
-  expect(await notes(B)).toEqual(['恢复后的']);
+  expect(await notes(B)).toEqual(['恢复后的']);                                          // 只有一笔（不会因为分页重复）
   expect(await js(B, 'App.S.sync.epoch')).toBe(1);
+  // 4 万行在同一次恢复里更新，updated_at 完全相同：拉取必须按「时间 + 主键」排序，分页才稳定（CI 上曾经出现过同一行重复 7 次）
+  const pulls = gw.log.filter(l => l.t >= t0 && l.method === 'GET' && l.path === '/rest/v1/xm_records');
+  expect(pulls.length).toBeGreaterThan(40);
+  expect(pulls.every(l => decodeURIComponent(l.query).includes('order=updated_at.asc,id.asc'))).toBe(true);
   const snap = B.native.snapshots()[0];
   expect(snap.data.length).toBe(size);
   expect(snap.meta.counts.records).toBe(40000);

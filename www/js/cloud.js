@@ -243,7 +243,9 @@
   const pullSince = async (t, since) => {
     const out = [];
     for (let off = 0; off < 100000; off += 1000) {
-      const q = `select=*&order=updated_at.asc&limit=1000&offset=${off}` + (since ? `&updated_at=gt.${encodeURIComponent(since)}` : '');
+      // 按更新时间排序，时间相同再按主键排序：一次恢复会让几万行的 updated_at 完全相同，只按时间排序时，
+      // 数据库对并列行的顺序不固定，分页（offset）会重复返回或漏掉行
+      const q = `select=*&order=updated_at.asc,${t.key}.asc&limit=1000&offset=${off}` + (since ? `&updated_at=gt.${encodeURIComponent(since)}` : '');
       const rows = await SB.select(t.name, q);
       out.push(...rows);
       if (rows.length < 1000) break;
@@ -429,13 +431,13 @@
         const hold = meta().hold;
         App.conflicts.protect(batch, { src: info.src || 'rebase', from, to: target }, C.pendingChanges());
         pulled.forEach(([t, rows]) => {
-          const tm = { since: '', h: {}, init: true }, list = [];
-          rows.forEach(w => {
+          const tm = { since: '', h: {}, init: true }, byKey = new Map();
+          rows.forEach(w => {   // 按主键去重（同一行即使被重复返回也只算一次；后到的为准）
             tm.since = later(tm.since, w.updated_at);
-            if (w.deleted) return;
-            const item = t.fromRow(w); list.push(item);
-            tm.h[w[t.key]] = rowHash(t, t.toRow(item));
+            if (w.deleted) { byKey.delete(w[t.key]); return; }
+            byKey.set(w[t.key], w);
           });
+          const list = Array.from(byKey.values()).map(w => { const item = t.fromRow(w); tm.h[w[t.key]] = rowHash(t, t.toRow(item)); return item; });
           t.write(list); meta().t[t.name] = tm; down += list.length;
         });
         const w = st && st[0];
