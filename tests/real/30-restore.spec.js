@@ -139,6 +139,13 @@ test('连点「开始恢复」：只建一个任务', async ({ openApp, gw }) =>
   expect(calls(gw, uid, 'xm_restore_create')).toHaveLength(1);
   expect(jobs(gw, uid)).toHaveLength(1);
   expect(gw.db.epochOf(uid)).toBe(1);
+  // 按钮之外的第二道防线：两次 start 同时到达（例如面板重画前的快速双击）→ 只有一次生效
+  const r = await js(A, 'Promise.allSettled([0, 1].map(() => App.restore.start(App.restore.validate(JSON.parse(arg))))).then(a => a.map(x => x.status === "fulfilled" ? x.value : "err"))', backup);
+  expect(r.filter(x => x === true)).toHaveLength(1);
+  await waitDone(A);
+  expect(calls(gw, uid, 'xm_restore_create')).toHaveLength(2);
+  expect(jobs(gw, uid)).toHaveLength(2);
+  expect(gw.db.epochOf(uid)).toBe(2);
 });
 
 test('上传到一半断网、App 被杀后重开：接着同一个任务、跳过已传完的批次，不新建任务', async ({ openApp, gw }) => {
