@@ -122,7 +122,7 @@
         if (batchIds.length !== 1 || !batchIds[0]) return keep('无法判断批次');
         const bid = batchIds[0], b = bs[bid];
         if (!b) return keep('批次不在记录里');
-        if (!b.doneAt) return keep('批次还有待处理的冲突，或仍在使用');
+        if (!b.doneAt) return keep('批次还有待处理的冲突、仍在使用或状态不确定（没有完成时间）');
         if (Date.now() - b.doneAt <= KEEP) return keep('处理完还没满 30 天');
         if ((S.conflicts || []).some(c => c.batch === bid && c.status === 'pending')) return keep('冲突箱里还有这个批次的待处理项');
         if (bid === jobBatch) return keep('仍被恢复任务引用');

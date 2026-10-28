@@ -284,6 +284,13 @@ test('H 清理规则：有待处理冲突 / 处理完不满 30 天 / 被恢复�
   expect(await js(B, `typeof App.S.safety.batches[${JSON.stringify(batch)}].doneAt`)).toBe('number');
   r = await gc();
   expect(r.kept.find(k => k.dir === dir).why).toContain('30 天');
+  // 状态不确定（批次没有完成时间，但冲突箱里也没有待处理项、也没被引用）：保留，不能把「冲突箱为空」当成可删
+  const done = await js(B, `App.S.safety.batches[${JSON.stringify(batch)}].doneAt`);
+  await js(B, `(App.S.safety.batches[${JSON.stringify(batch)}].doneAt = null, 0)`);
+  r = await gc();
+  expect(r.deleted).toEqual([]);
+  expect(r.kept.find(k => k.dir === dir).why).toContain('状态不确定');
+  await js(B, `(App.S.safety.batches[${JSON.stringify(batch)}].doneAt = ${done}, 0)`);
   await js(B, `(App.S.safety.batches[${JSON.stringify(batch)}].doneAt = Date.now() - 31 * 864e5, 0)`);
   // 被恢复任务引用：保留
   await js(B, `(window.__job = App.restore.job, App.restore.job = () => ({ phase: 'applied', uid: ${JSON.stringify(uid)}, result: { epoch: 1 } }), 0)`);
