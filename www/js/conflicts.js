@@ -1,7 +1,8 @@
 /* 晓米记账 · 冲突箱
  *
  * 另一台设备恢复了备份（或这台手机导入备份覆盖云端）时，这台手机上「还没同步上去的修改」不会被静默丢掉：
- * 覆盖本机之前，先把它们连同原始内容放进冲突箱并确认写入成功，之后由用户逐条决定「加回去」还是「不要了」。
+ * 覆盖本机之前，先把它们连同原始内容放进冲突箱，和覆盖后的账本在同一次原子提交里确认写入成功（durable.js），
+ * 之后由用户逐条决定「加回去」还是「不要了」。
  *
  * - 每一项：{ id, batch, src, from, to, at, table, key, kind: add|edit|delete|state, local, status, doneAt }
  *   status：pending 待处理 / applied 已加回去 / discarded 不要了 / same 与云端一致（自动关闭）
@@ -12,8 +13,6 @@
   'use strict';
   const App = window.App, U = App.U, UI = App.UI, A = App.A, esc = U.esc;
   const X = App.conflicts = {};
-  const LS_KEY = 'xiaomi_ledger_v1';     // 与 core.js 的存储键一致
-  const SNAP_KEY = 'xm_snap_rebase';      // 对齐前的本机快照（只保留最近一份）
   const clone = o => (o === undefined ? undefined : JSON.parse(JSON.stringify(o)));
   const P = () => App.cloud.kit;
 
@@ -21,40 +20,31 @@
   X.all = all;
   X.pending = () => all().filter(c => c.status === 'pending');
 
-  // 立即保存并确认成功（App.flush 会吞掉存储错误，这里不行：保存失败就必须停下来）
-  const persistNow = () => {
-    const s = JSON.stringify(App.S);
-    localStorage.setItem(LS_KEY, s);
-    App.native('save', { data: s });
-  };
-  const fail = (code, msg) => { const e = new Error(msg); e.code = code; return e; };
+  // 安全快照、批次记录、「从快照恢复本机」见 safety.js；持久化走 durable.js 的原子提交（这里只改内存）
 
-  // 1) 覆盖本机之前：整份账本存一份快照。localStorage 写入失败就抛错，调用方不得继续覆盖
-  X.snapshot = (id, label) => {
-    const data = JSON.stringify(App.S);
-    try { localStorage.setItem(SNAP_KEY, JSON.stringify({ id, at: Date.now(), data })); }
-    catch (e) { throw fail('xm_snapshot_failed', '手机存储空间不足，没能先保存本机账本，已暂停与云端对齐（本机数据没有改动）'); }
-    const d = new Date();
-    App.native('snapshot', { filename: `晓米记账-${label || '对齐前备份'}-${U.today()}-${U.pad(d.getHours())}${U.pad(d.getMinutes())}${U.pad(d.getSeconds())}.json`, content: data });
-  };
-  X.lastSnapshot = () => { try { return JSON.parse(localStorage.getItem(SNAP_KEY) || 'null'); } catch (e) { return null; } };
-
-  // 2) 把未同步的修改放进冲突箱，并确认写入成功。同一批次重复调用只会更新、不会重复生成
+  // 把未同步的修改放进冲突箱（只改内存：由调用方在同一次原子提交里连同覆盖后的账本一起保存）
+  // - 同一批次重复调用只会更新、不会重复生成；用户已经处理过的不再改动
+  // - 跨批次去重：其他批次里已有「表、键、类型、本机内容」都相同的待处理项，就不再新建
   X.protect = (batch, info, items) => {
-    const byId = new Map(all().map(c => [c.id, c]));
+    const list = all().slice();
+    const byId = new Map(list.map(c => [c.id, c]));
+    const sig = c => c.table + '|' + c.key + '|' + c.kind + '|' + JSON.stringify(c.local === undefined ? null : c.local);
+    const elsewhere = new Set(list.filter(c => c.status === 'pending' && c.batch !== batch).map(sig));
+    let added = 0;
     items.forEach(it => {
       const id = batch + '|' + it.table + '|' + it.key;
       const old = byId.get(id);
-      if (old && old.status !== 'pending') return;       // 用户已经处理过的，不再改动
-      byId.set(id, {
+      if (old && old.status !== 'pending') return;
+      const item = {
         id, batch, src: info.src || 'rebase', from: info.from, to: info.to, at: (old && old.at) || Date.now(),
         table: it.table, key: it.key, kind: it.kind, local: it.local === undefined ? null : clone(it.local), status: 'pending'
-      });
+      };
+      if (!old && elsewhere.has(sig(item))) return;
+      if (!old) added++;
+      byId.set(id, item);
     });
-    const keep = App.S.conflicts;
     App.S.conflicts = Array.from(byId.values());
-    try { persistNow(); }
-    catch (e) { App.S.conflicts = keep; throw fail('xm_protect_failed', '手机存储空间不足，没能保存冲突箱，已暂停与云端对齐（本机数据没有改动）'); }
+    return added;
   };
 
   // 本机现在的这一项（对齐之后 = 云端的样子）
@@ -105,6 +95,7 @@
     const cur = all().find(x => x.id === id);          // 整块设置会生成新的 App.S，重新取一次
     cur.status = action === 'apply' ? 'applied' : 'discarded';
     cur.doneAt = Date.now();
+    if (App.safety) App.safety.batchCheck(cur.batch);   // 批次里最后一项处理完：记下完成时间（快照清理按它算 30 天）
     App.flush();                                      // 修改和处理状态在同一次保存里落盘
     if (App.render) App.render(true);
     return true;

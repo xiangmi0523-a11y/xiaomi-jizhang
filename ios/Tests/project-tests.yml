@@ -1,0 +1,29 @@
+# 只用于 DurableStore 的单元测试（macOS 上运行），不影响正式的 project.yml 和 IPA 构建
+#   xcodegen generate --spec ios/Tests/project-tests.yml
+#   xcodebuild test -project ios/Tests/XiaomiStoreTests.xcodeproj -scheme XiaomiStoreTests -destination 'platform=macOS'
+name: XiaomiStoreTests
+options:
+  deploymentTarget:
+    macOS: "12.0"
+targets:
+  XiaomiStoreTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: ../Sources/DurableStore.swift
+      - path: DurableStoreTests.swift
+    settings:
+      base:
+        SWIFT_VERSION: "5.0"
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.xiaomijizhang.storetests
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: "-"
+        DEVELOPMENT_TEAM: ""
+schemes:
+  XiaomiStoreTests:
+    build:
+      targets:
+        XiaomiStoreTests: [test]
+    test:
+      targets: [XiaomiStoreTests]

@@ -52,7 +52,7 @@ jobs:
   # 另外用 main 上的前端扮演「还没更新的旧版 App」
   e2e-real:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 150   # 前端变异 49 个，每个都要起一次真实数据库环境
     services:
       postgres:
         image: postgres:17
@@ -81,8 +81,12 @@ jobs:
       - name: 前端变异测试（每处保护拆掉后，对应用例必须失败）
         run: |
           set -o pipefail
-          node tests/real/mutate-frontend.js 2>&1 | tee "$RUNNER_TEMP/fmut.log"
+          status=0
+          node tests/real/mutate-frontend.js 2>&1 | tee "$RUNNER_TEMP/fmut.log" || status=$?
+          # 不管成败都输出结果（CI 的完整日志在本仓库的环境里下载不了，只能看注释）
           echo "::notice title=前端变异测试::$(grep -E '^前端变异' "$RUNNER_TEMP/fmut.log")"
+          grep -E '^✗ ' "$RUNNER_TEMP/fmut.log" | while IFS= read -r line; do echo "::error title=变异没被发现::${line}"; done
+          exit $status
       - name: 上传测试报告
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4

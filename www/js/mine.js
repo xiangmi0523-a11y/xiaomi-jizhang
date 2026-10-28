@@ -343,6 +343,7 @@
         ${App.backup.folder() ? row('backupNow', 'refresh', '立即备份一次', '点上一行可以换一个文件夹') : ''}
         ${row('dataExport', 'exportI', '导出备份（JSON）', '换手机、重装、更新前先做一份')}
         <label class="menu-row" for="importFile"><span class="mi">${MI.importI}</span><span class="mt">导入备份<small>${App.supabase.user() ? '用备份替换云端账本，这台手机跟着更新' : '用备份文件覆盖当前数据'}</small></span><span class="mr">${UI.icons.chev}</span></label>
+        ${row('openSnapshots', 'refresh', '从快照恢复本机', App.safety && App.safety.held() ? '已恢复本机 · 云同步已暂停' : '只改这台手机，不改云端')}
         ${row('dataCsv', 'table', '导出表格（CSV）', '可以用 Excel / WPS 打开')}
         ${row('dataClear', 'trash', '清空所有数据', '会先让你确认')}
       </div><input id="importFile" type="file" accept=".json,application/json,text/plain" hidden>

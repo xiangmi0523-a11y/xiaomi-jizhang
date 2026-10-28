@@ -1,0 +1,132 @@
+name: 测试构建 IPA（只构建、不发布）
+
+# 只用于真机测试：不创建 Release、不发布、不部署，不改正式的 build-ipa.yml。
+# 触发：推送到 feat/** 分支（并且改了 iOS / 网页 / 工程文件），或手动触发。
+#   GitHub 只允许手动触发「默认分支上已有」的 Workflow，所以功能分支上的这个文件靠 push 触发。
+# 权限只有读：即使误加了发布步骤也没有权限创建 Release。
+on:
+  push:
+    branches: ['feat/**']
+    paths:
+      - 'ios/**'
+      - 'www/**'
+      - 'project.yml'
+      - '.github/workflows/build-ipa-test.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ipa-test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # DurableStore 的单元测试（macOS 上运行，文件系统语义与 iOS 相同）
+  xctest:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: 选择 Xcode
+        shell: bash {0}
+        run: |
+          for XC in $(ls -d /Applications/Xcode_26*.app /Applications/Xcode_16*.app 2>/dev/null | grep -vi beta | sort -Vr); do
+            sudo xcode-select -s "$XC/Contents/Developer" && xcodebuild -version >/tmp/xv.txt 2>&1 && break
+          done
+          echo "::notice title=XCTest 使用的 Xcode::$(head -1 /tmp/xv.txt)"
+      - name: 安装 XcodeGen
+        run: brew install xcodegen
+      - name: 生成测试工程（独立的 ios/Tests/project-tests.yml，不动正式 project.yml）
+        run: xcodegen generate --spec ios/Tests/project-tests.yml
+      - name: 运行 XCTest
+        run: |
+          set -o pipefail
+          status=0
+          xcodebuild test -project ios/Tests/XiaomiStoreTests.xcodeproj -scheme XiaomiStoreTests -destination 'platform=macOS' 2>&1 | tee xctest.log || status=$?
+          # 完整日志在本仓库的环境里下载不了：把结果写成注释
+          echo "::notice title=XCTest 结果::$(grep -E 'Executed [0-9]+ tests?' xctest.log | tail -1)"
+          grep -E "error: |: error|failed \(" xctest.log | sort -u | head -30 | while IFS= read -r line; do echo "::error title=XCTest::${line}"; done
+          grep -E "Test Case '.*' (passed|failed|skipped)" xctest.log | sed -E "s/.*Test Case '-\[[^ ]+ ([^]]+)\]' ([a-z]+).*/\1 \2/" | while IFS= read -r line; do echo "::notice title=XCTest 用例::${line}"; done
+          exit $status
+      - name: 保存 XCTest 日志
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: xctest-log-${{ github.sha }}
+          path: xctest.log
+          retention-days: 14
+          if-no-files-found: ignore
+
+  # 测试用 IPA：与正式构建相同的编译和打包步骤，但版本号、文件名、产物名都带「TEST」，并且没有任何发布步骤
+  build:
+    runs-on: macos-15-intel
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: 选择较新的 Xcode
+        shell: bash {0}
+        run: |
+          OK=""
+          for XC in $(ls -d /Applications/Xcode_26*.app /Applications/Xcode_16*.app 2>/dev/null | grep -vi beta | sort -Vr); do
+            sudo xcode-select -s "$XC/Contents/Developer" || continue
+            if xcodebuild -version >/tmp/xv.txt 2>&1 || { sudo xcodebuild -runFirstLaunch >/dev/null 2>&1; xcodebuild -version >/tmp/xv.txt 2>&1; }; then OK="$XC"; break; fi
+          done
+          if [ -z "$OK" ]; then echo "::error::没有可用的 Xcode"; exit 1; fi
+          echo "::notice title=构建使用的 Xcode::$(head -1 /tmp/xv.txt)（$(basename "$OK")）"
+      - name: 安装 XcodeGen
+        run: brew install xcodegen
+      - name: 生成 Xcode 工程
+        run: xcodegen generate
+      - name: 编译（不签名）
+        run: |
+          xcodebuild \
+            -project XiaomiJizhang.xcodeproj \
+            -scheme XiaomiJizhang \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            MARKETING_VERSION=0.9.${{ github.run_number }} \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build > build.log 2>&1 || {
+            grep -E "error:|BUILD FAILED|fatal" build.log | sort -u | head -20 | while IFS= read -r line; do echo "::error::${line}"; done
+            tail -n 80 build.log
+            exit 1
+          }
+          tail -n 5 build.log
+      - name: 打包测试 IPA（未签名，仅 ad-hoc 写入权限声明，必须用签名工具重签后才能安装）
+        id: pack
+        run: |
+          APP="build/Build/Products/Release-iphoneos/XiaomiJizhang.app"
+          test -d "$APP"
+          rm -rf Payload && mkdir Payload
+          cp -R "$APP" Payload/
+          PA="Payload/XiaomiJizhang.app"
+          if [ -d "$PA/PlugIns/XiaomiWidget.appex" ]; then
+            codesign --force --sign - --entitlements ios/XiaomiWidget.entitlements "$PA/PlugIns/XiaomiWidget.appex"
+          fi
+          codesign --force --sign - --entitlements ios/XiaomiJizhang.entitlements "$PA"
+          SHORT=$(git rev-parse --short=7 HEAD)
+          NAME="XiaomiJizhang-TEST-${SHORT}-r${{ github.run_number }}"
+          zip -qry "$NAME.ipa" Payload
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "::notice title=测试 IPA::提交 $(git rev-parse HEAD)；版本 0.9.${{ github.run_number }}（build ${{ github.run_number }}）；产物 $NAME；未签名（只有 ad-hoc 权限声明），需要用全能签等工具重签后安装；不是正式发布"
+          grep -q "durable" www/js/durable.js && echo "::notice title=包内检查::包含 durable.js"
+          plutil -p "$APP/Info.plist" | grep -E "CFBundleShortVersionString|CFBundleVersion|UIFileSharingEnabled|LSSupportsOpeningDocumentsInPlace"
+          ls -la "$NAME.ipa"
+      - name: 上传测试 IPA（只作为 Actions 产物，不创建 Release）
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.pack.outputs.name }}
+          path: ${{ steps.pack.outputs.name }}.ipa
+          retention-days: 14
+      - name: 保存构建日志
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log-${{ github.sha }}
+          path: build.log
+          retention-days: 14
+          if-no-files-found: ignore

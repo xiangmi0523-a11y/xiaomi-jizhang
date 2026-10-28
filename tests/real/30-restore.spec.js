@@ -281,7 +281,7 @@ test('恢复前没同步的修改、恢复途中新记的账：都不会被静�
     ['import', 'xm_records', ids.r1, 'edit', '早餐（改过没同步）']
   ].sort());
   expect(await notes(A)).toEqual(['午饭', '早餐', '晚饭']);
-  const snap = await js(A, "JSON.parse(JSON.parse(localStorage.getItem('xm_snap_rebase')).data).records.map(r => r.note).sort()");
+  const snap = await js(A, "(() => { const os = Object.keys(localStorage).filter(k => k.startsWith('xm_snap:')).map(k => JSON.parse(localStorage.getItem(k))).sort((a, b) => b.meta.at - a.meta.at); return JSON.parse(os[0].data).records.map(r => r.note).sort(); })()");
   expect(snap).toEqual(expect.arrayContaining(['恢复前没同步的', '恢复途中记的', '早餐（改过没同步）']));
   // 加回去 → 正常同步上云（新版本号）
   await js(A, `(App.conflicts.pending().filter(c => c.key === ${JSON.stringify(during)}).forEach(c => App.conflicts.resolve(c.id, 'apply')), 0)`);
@@ -318,7 +318,7 @@ test('恢复已在云端生效、但这台手机存储空间不足写不了快�
   const backup = await js(A, 'App.restore.exportText()');
   await addRec(A, '导出后新增', 999);
   expect(await syncNow(A)).toBe('');
-  await js(A, `(() => { const raw = Storage.prototype.setItem; window.__full = true; Storage.prototype.setItem = function (k, v) { if (window.__full && k === 'xm_snap_rebase') throw new DOMException('QuotaExceededError', 'QuotaExceededError'); return raw.call(this, k, v); }; return 0; })()`);
+  await js(A, `(() => { const raw = Storage.prototype.setItem; window.__full = true; Storage.prototype.setItem = function (k, v) { if (window.__full && String(k).startsWith('xm_snap:')) throw new DOMException('QuotaExceededError', 'QuotaExceededError'); return raw.call(this, k, v); }; return 0; })()`);
   await importViaUI(A, backup);
   await expect(A.locator('.rs-msg.warn')).toContainText('备份已经恢复到云端，但这台手机还没更新');
   expect(gw.db.epochOf(uid)).toBe(1);

@@ -48,6 +48,9 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
         return dir.appendingPathComponent("xiaomi-data.json")
     }
 
+    /// 安全快照 + 账本两步提交（方案 A）。所有操作和普通保存一样放在 ioQueue 里串行执行，顺序与网页发送顺序一致
+    private let durable = DurableStore.standard()
+
     override var preferredStatusBarStyle: UIStatusBarStyle { .default }
 
     override func viewDidLoad() {
@@ -171,6 +174,13 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
     /// 启动时把上次保存的账本文件交给网页（网页自己的 localStorage 丢失时用来恢复）
     private func bootstrapScript() -> String {
         var js = "window.__NATIVE_APP__ = true; window.__BIO__ = \(jsString(biometryName()));"
+        // 方案 A：声明原生持久化能力（协议版本）；读账本之前先处理上次没完成的提交、清理临时文件
+        js += " window.__NATIVE_CAPS__ = { durableWrite: \(DurableStore.protocolVersion) };"
+        let store = durable
+        let recovery: [String: Any] = ioQueue.sync { store.bootRecover() }
+        if let data = try? JSONSerialization.data(withJSONObject: recovery), let text = String(data: data, encoding: .utf8) {
+            js += " window.__NATIVE_RECOVERY__ = \(text);"   // 只用于诊断日志；编码失败不影响启动
+        }
         if NativeTabs.enabled { js += " window.__NATIVE_TABBAR__ = true;" }
         if let folder = backupFolderURL() {
             js += " window.__BACKUP_FOLDER__ = \(jsString(folder.lastPathComponent));"
@@ -350,8 +360,13 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
             guard let self = self else { return }
             let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
                 .appendingPathComponent("自动备份", isDirectory: true)
-            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-            try? Data(content.utf8).write(to: dir.appendingPathComponent(safeName), options: .atomic)
+            do {
+                try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+                try Data(content.utf8).write(to: dir.appendingPathComponent(safeName), options: .atomic)
+            } catch {
+                self.reportSaveError("备份文件", error)
+                return
+            }
             // 每天的自动快照留 7 份，导入/清空前的「操作前备份」留 5 份；损坏数据的存档不自动删
             for (prefix, keep) in [("晓米记账自动备份-", 7), ("晓米记账-操作前备份-", 5)] where safeName.hasPrefix(prefix) {
                 self.pruneBackups(in: dir, prefix: prefix, keep: keep, coordinated: false)
@@ -468,6 +483,8 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
             if let name = body["filename"] as? String, let content = body["content"] as? String {
                 saveSnapshot(filename: name, content: content)
             }
+        case "durable":
+            handleDurable(body)
         default:
             break
         }
@@ -475,9 +492,78 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
 
     private func saveData(_ text: String) {
         let url = dataFileURL
-        runIO("xm-save") {
-            try? Data(text.utf8).write(to: url, options: .atomic)
+        runIO("xm-save") { [weak self] in
+            do { try Data(text.utf8).write(to: url, options: .atomic) }
+            catch { self?.reportSaveError("账本", error) }
         }
+    }
+
+    /// 普通保存失败不再静默：告诉网页（网页会提示，并记诊断日志）
+    private func reportSaveError(_ what: String, _ error: Error) {
+        callJS("window.App && App.durable && App.durable.onSaveError(\(jsString(what)), \(jsString(error.localizedDescription)))")
+    }
+
+    // MARK: - 方案 A：带严格回执的持久化（协议 v1）
+
+    private func handleDurable(_ body: [String: Any]) {
+        guard let id = body["id"] as? String, id.range(of: "^[A-Za-z0-9_-]{1,80}$", options: .regularExpression) != nil else { return }
+        let op = (body["op"] as? String) ?? ""
+        let v = (body["v"] as? NSNumber)?.intValue ?? 0
+        let store = durable
+        runIO("xm-durable") { [weak self] in
+            guard let self = self else { return }
+            var r: [String: Any] = ["v": DurableStore.protocolVersion, "id": id, "op": op]
+            do {
+                guard v == DurableStore.protocolVersion else {
+                    throw DurableStore.Failure(code: "unsupported_version", message: "不支持的协议版本 \(v)")
+                }
+                let int = { (k: String) -> Int in (body[k] as? NSNumber)?.intValue ?? -1 }
+                let str = { (k: String) -> String in (body[k] as? String) ?? "" }
+                var extra: [String: Any] = [:]
+                switch op {
+                case "snapshotWrite":
+                    guard let content = body["content"] as? String, let meta = body["meta"] as? [String: Any] else {
+                        throw DurableStore.Failure(code: "bad_request", message: "缺少快照内容或说明")
+                    }
+                    let metaData: Data
+                    do { metaData = try JSONSerialization.data(withJSONObject: meta) }
+                    catch { throw DurableStore.Failure(code: "bad_request", message: "快照说明无法编码") }
+                    extra = try store.snapshotWrite(dir: str("dir"), name: str("name"), content: Data(content.utf8),
+                                                    bytes: int("bytes"), sha256: str("sha256"), meta: metaData)
+                case "ledgerStage":
+                    guard let content = body["content"] as? String else { throw DurableStore.Failure(code: "bad_request", message: "缺少账本内容") }
+                    extra = try store.ledgerStage(content: Data(content.utf8), bytes: int("bytes"), sha256: str("sha256"))
+                case "ledgerCommit":
+                    extra = try store.ledgerCommit(bytes: int("bytes"), sha256: str("sha256"))
+                case "ledgerDiscard":
+                    try store.ledgerDiscard()
+                case "snapshotList":
+                    let items = try store.snapshotList()
+                    extra = ["items": items]
+                case "snapshotRead":
+                    extra = try store.snapshotRead(dir: str("dir"), name: str("name"))
+                case "snapshotDelete":
+                    extra = ["items": store.snapshotDelete(dirs: (body["dirs"] as? [String]) ?? [])]
+                default:
+                    throw DurableStore.Failure(code: "bad_request", message: "未知操作 \(op)")
+                }
+                r.merge(extra) { _, new in new }
+                r["ok"] = true
+            } catch let f as DurableStore.Failure {
+                r["ok"] = false; r["code"] = f.code; r["message"] = f.message
+            } catch {
+                r["ok"] = false; r["code"] = "EIO"; r["message"] = error.localizedDescription
+            }
+            self.sendReceipt(id: id, r)
+        }
+    }
+
+    /// 回执：整段 JSON 用 base64 传给网页，避免转义问题。编码失败也要回一个明确的失败回执
+    private func sendReceipt(id: String, _ r: [String: Any]) {
+        let data: Data
+        do { data = try JSONSerialization.data(withJSONObject: r) }
+        catch { data = Data("{\"v\":\(DurableStore.protocolVersion),\"id\":\"\(id)\",\"ok\":false,\"code\":\"EIO\",\"message\":\"回执编码失败\"}".utf8) }
+        callJS("window.App && App.durable && App.durable.done('\(id)', '\(data.base64EncodedString())')")
     }
 
     /// 把预算/猫咪摘要写进 App Group，刷新桌面小组件（签名证书不支持 App Group 时小组件会显示“打开 App 同步”）

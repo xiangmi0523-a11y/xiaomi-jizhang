@@ -54,7 +54,7 @@ test('第二台设备有未同步的新增、编辑、删除和设置修改 —�
   // 本机 = 恢复后的云端；版本号更新；快照里有对齐前的账本
   expect(await notes(B)).toEqual(['午饭（备份）', '备份里才有', '早餐']);
   expect(await js(B, 'App.S.sync.epoch')).toBe(1);
-  const snap = await js(B, "JSON.parse(JSON.parse(localStorage.getItem('xm_snap_rebase')).data).records.map(r => r.note).sort()");
+  const snap = await js(B, "(() => { const os = Object.keys(localStorage).filter(k => k.startsWith('xm_snap:')).map(k => JSON.parse(localStorage.getItem(k))).sort((a, b) => b.meta.at - a.meta.at); return JSON.parse(os[0].data).records.map(r => r.note).sort(); })()");
   expect(snap).toEqual(['早餐（离线改过）', '晚饭', '离线新记的']);
   // B 没有往云端写任何东西
   expect(gw.db.sql(`select json_agg(t order by id) from (select id, amount, note, deleted from public.xm_records where user_id = '${uid}') t`)).toBe(cloudBefore);
@@ -68,7 +68,7 @@ test('本机快照没写成功 —— 不覆盖本机账本、不写冲突箱、
   await addRec(B, '离线新记的', 777);
   await serverRestore(gw, email, backupOf(ids));
   const before = await js(B, 'JSON.stringify(App.S.records)');
-  await js(B, `(() => { const raw = Storage.prototype.setItem; Storage.prototype.setItem = function (k, v) { if (k === 'xm_snap_rebase') throw new DOMException('QuotaExceededError', 'QuotaExceededError'); return raw.call(this, k, v); }; return 0; })()`);
+  await js(B, `(() => { const raw = Storage.prototype.setItem; Storage.prototype.setItem = function (k, v) { if (String(k).startsWith('xm_snap:')) throw new DOMException('QuotaExceededError', 'QuotaExceededError'); return raw.call(this, k, v); }; return 0; })()`);
   const err = await syncNow(B);
   expect(err).toContain('没能先保存本机账本');
   expect(await js(B, 'JSON.stringify(App.S.records)')).toBe(before);

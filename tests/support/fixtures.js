@@ -8,6 +8,7 @@
 'use strict';
 const base = require('@playwright/test');
 const { MockSupabase, MOCK_ORIGIN } = require('./mock-supabase');
+const { FakeNative } = require('./fake-native');
 
 const KEY = 'xiaomi_ledger_v1';
 
@@ -16,6 +17,15 @@ const NATIVE_STUB = () => {
   window.__NATIVE_APP__ = true;
   window._msgs = [];
   window.webkit = { messageHandlers: { native: { postMessage: m => {
+    // 假原生层（durable 选项）：普通保存和持久化请求交给 Node 端的 FakeNative，按顺序执行，回执异步送回
+    if ((m.type === 'save' || m.type === 'durable') && window.__nativeFs) {
+      window._msgs.push({ type: m.type, op: m.op, id: m.id });
+      const copy = JSON.parse(JSON.stringify(m));
+      window.__nq = (window.__nq || Promise.resolve()).then(() => window.__nativeFs(copy)).then(res => {
+        if (res && res.deliver) setTimeout(() => { if (window.App && window.App.durable) window.App.durable.done(res.id, res.b64); }, res.delay || 0);
+      }).catch(() => {});
+      return;
+    }
     window._msgs.push(JSON.parse(JSON.stringify(m)));
     if (m.type === 'http') {
       fetch(m.url, { method: m.method, headers: m.headers, body: m.body || undefined })
@@ -66,7 +76,28 @@ const test = base.test.extend({
           if (o.seed === null) localStorage.removeItem(o.key); else localStorage.setItem(o.key, typeof o.seed === 'string' ? o.seed : JSON.stringify(o.seed));
         }
       }, { mock: opts.cloudUrl || MOCK_ORIGIN, forceGate: !!opts.forceGate, seed: opts.seed, key: KEY });
-      if (opts.native) await page.addInitScript(NATIVE_STUB);
+      if (opts.durable) {
+        // 假原生层：Node 端保存文件（页面重载后还在），能力声明可以改（caps: null 表示不声明）
+        const fake = new FakeNative();
+        await context.exposeBinding('__nativeFs', (src, msg) => fake.handle(msg));
+        const caps = opts.durable.caps === undefined ? { durableWrite: 1 } : opts.durable.caps;
+        if (caps) await page.addInitScript(c => { window.__NATIVE_CAPS__ = c; }, caps);
+        page.native = fake;
+        // 模拟「App 被杀后重开」：原生启动恢复（移走未完成的提交）→ 注入正式账本 → 重新加载页面
+        page.reloadNative = async () => {
+          const { b64, info } = fake.boot();
+          await page.addInitScript(([b, i]) => { if (b) window.__NATIVE_B64__ = b; else delete window.__NATIVE_B64__; window.__NATIVE_RECOVERY__ = i; }, [b64, info]);
+          await page.reload();
+          await ready(page, opts);
+        };
+        // 放行扣住的回执（送到当前页面；页面重载过的话，旧编号会被识别为不认识而丢弃）
+        page.releaseReceipts = async () => {
+          const hs = fake.held.splice(0);
+          for (const r of hs) await page.evaluate(([id, b64]) => window.App.durable.done(id, b64), [r.id, r.b64]);
+          return hs.length;
+        };
+      }
+      if (opts.native || opts.durable) await page.addInitScript(NATIVE_STUB);
       if (opts.nativeB64 !== undefined) await page.addInitScript(b64 => { window.__NATIVE_B64__ = b64; }, opts.nativeB64);
       if (opts.init) await page.addInitScript(opts.init);
 
