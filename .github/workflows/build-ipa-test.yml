@@ -46,8 +46,9 @@ jobs:
           xcodebuild test -project ios/Tests/XiaomiStoreTests.xcodeproj -scheme XiaomiStoreTests -destination 'platform=macOS' 2>&1 | tee xctest.log || status=$?
           # 完整日志在本仓库的环境里下载不了：把结果写成注释
           echo "::notice title=XCTest 结果::$(grep -E 'Executed [0-9]+ tests?' xctest.log | tail -1)"
-          grep -E "error: |: error|failed \(" xctest.log | sort -u | head -30 | while IFS= read -r line; do echo "::error title=XCTest::${line}"; done
-          grep -E "Test Case '.*' (passed|failed|skipped)" xctest.log | sed -E "s/.*Test Case '-\[[^ ]+ ([^]]+)\]' ([a-z]+).*/\1 \2/" | while IFS= read -r line; do echo "::notice title=XCTest 用例::${line}"; done
+          # 没有匹配时 grep 返回 1：加 || true，免得 bash -e + pipefail 把「没有错误」当成失败
+          { grep -E "error: |: error|failed \(" xctest.log || true; } | sort -u | head -30 | while IFS= read -r line; do echo "::error title=XCTest::${line}"; done
+          { grep -E "Test Case '.*' (passed|failed|skipped)" xctest.log || true; } | sed -E "s/.*Test Case '-\[[^ ]+ ([^]]+)\]' ([a-z]+).*/\1 \2/" | while IFS= read -r line; do echo "::notice title=XCTest 用例::${line}"; done
           exit $status
       - name: 保存 XCTest 日志
         if: ${{ !cancelled() }}
@@ -112,7 +113,7 @@ jobs:
           NAME="XiaomiJizhang-TEST-${SHORT}-r${{ github.run_number }}"
           zip -qry "$NAME.ipa" Payload
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
-          echo "::notice title=测试 IPA::提交 $(git rev-parse HEAD)；版本 0.9.${{ github.run_number }}（build ${{ github.run_number }}）；产物 $NAME；未签名（只有 ad-hoc 权限声明），需要用全能签等工具重签后安装；不是正式发布"
+          echo "::notice title=测试 IPA::提交 $(git rev-parse HEAD)；版本 0.9.${{ github.run_number }}（build ${{ github.run_number }}）；产物 ${NAME}；未签名（只有 ad-hoc 权限声明），需要用全能签等工具重签后安装；不是正式发布"
           grep -q "durable" www/js/durable.js && echo "::notice title=包内检查::包含 durable.js"
           plutil -p "$APP/Info.plist" | grep -E "CFBundleShortVersionString|CFBundleVersion|UIFileSharingEnabled|LSSupportsOpeningDocumentsInPlace"
           ls -la "$NAME.ipa"

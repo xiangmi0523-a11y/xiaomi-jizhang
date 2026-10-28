@@ -85,7 +85,7 @@ jobs:
           node tests/real/mutate-frontend.js 2>&1 | tee "$RUNNER_TEMP/fmut.log" || status=$?
           # 不管成败都输出结果（CI 的完整日志在本仓库的环境里下载不了，只能看注释）
           echo "::notice title=前端变异测试::$(grep -E '^前端变异' "$RUNNER_TEMP/fmut.log")"
-          grep -E '^✗ ' "$RUNNER_TEMP/fmut.log" | while IFS= read -r line; do echo "::error title=变异没被发现::${line}"; done
+          { grep -E '^✗ ' "$RUNNER_TEMP/fmut.log" || true; } | while IFS= read -r line; do echo "::error title=变异没被发现::${line}"; done
           exit $status
       - name: 上传测试报告
         if: ${{ !cancelled() }}
