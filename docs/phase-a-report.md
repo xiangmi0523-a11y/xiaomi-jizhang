@@ -59,7 +59,7 @@
 | A9 页面重载后旧回执才到 | 通过 |
 | A10 没有能力声明 / 协议版本不同 → 降级 | 通过 |
 
-### B. 原生存储（XCTest，GitHub Actions macOS runner，Xcode 26.3，运行编号 `40657769049`）
+### B. 原生存储（XCTest，GitHub Actions macOS runner，Xcode 26.3；运行编号 `40657769049` 和最终代码的 `40660530885` 都是 9 / 9）
 
 | 用例 | 结果 |
 |---|---|
@@ -140,9 +140,10 @@
   - 推送到 `feat/**` 分支、并改了 `ios/**`、`www/**`、`project.yml` 或这个文件本身时触发。GitHub 只允许手动触发默认分支上已有的 Workflow，所以功能分支上靠 push 触发。
   - 权限只有 `contents: read`，没有任何 Release 步骤；正式的 `build-ipa.yml` 没改。
   - 本轮确认最新 Release 仍是 `v1.0.35`（2026-10-25，来自 main）。
-- **本轮产物：** `XiaomiJizhang-TEST-6ffa3dd-r2`
-  - 构建提交 `6ffa3dd441e8e7f015131c5040205f749c1b76ef`；
-  - 版本 0.9.2（build 2）；约 2.7 MB；保留 14 天。
+- **本轮产物（最终代码）：** `XiaomiJizhang-TEST-10dc778-r4`
+  - 运行编号 `40660530885`；构建提交 `10dc778df07a5745eaff93373b403693036b82a6`；
+  - 版本 0.9.4（build 4）；约 2.7 MB；保留 14 天；同一次运行里 XCTest 9 / 9 通过。
+  - 更早的 `…-6ffa3dd-r2` 不含账本归属检查，不要用。
   - **未签名**：只用 ad-hoc 方式写入了权限声明（与正式包的做法相同），**不能直接安装**，必须用全能签等工具重新签名。
 - **怎么拿：** 在 GitHub 网页上打开仓库 → Actions → 「测试构建 IPA（只构建、不发布）」→ 最新一次运行 → 页面底部 Artifacts → 下载 `XiaomiJizhang-TEST-…`。下载的是 zip，解压后得到 `.ipa`。需要登录 GitHub；本会话的环境无法下载产物文件。
 - **怎么装：** 把 `.ipa` 导入全能签 → 签名 → 安装。
