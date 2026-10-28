@@ -81,3 +81,28 @@ XM_EXTRA_SQL=supabase/proposals/2b3-restore-apply-timeout.sql npx playwright tes
 | `10-epoch` | 2B-1：没迁移的服务器照常同步、所有写请求带 `x-xm-epoch`、409 处理不无限重试、请求头被去掉时暂停、旧版 App（main 上的前端）被挡住、换账号 |
 | `20-rebase` | 2B-2：另一台设备恢复后，本机快照 → 未同步的新增 / 修改 / 删除 / 整块设置进冲突箱 → 对齐；快照或冲突箱写不进去时不覆盖；并发记账；冲突处理幂等、不重复发奖励 |
 | `30-restore` | 2B-3：通过界面导入备份恢复（H3）；无效备份不发请求；apply 响应丢失后重试同一任务；连点；上传中断 / 封存后被杀再重开；另一台设备抢先恢复（取消 / 继续）；旧备份缺可选模块；恢复前后的本机修改进冲突箱；开始恢复瞬间的自动同步；本机快照写不进去；语句超时；没装协议的服务器；大数据量耗时 |
+| `40-durable` | 方案 A（假原生层）：回执的各种故障（失败、永不回执、延迟、编号错、字节数错、SHA-256 错、迟到、重载后到达、没有能力声明 / 版本不同）；网页版存储写不下时安全停止；暂存 / 提交失败、提交途中被杀、提交完成但回执丢失、等回执时又记账；跨批次去重；4 万笔大账本；快照清理规则 |
+| `50-local-restore` | 「从快照恢复本机」：界面流程、无网络请求、epoch 保持当前、冲突箱保留、暂停同步与重启、恢复云同步、撤销、失败回滚与中断、快照校验、重复操作、网页版 |
+
+### 假原生层（`tests/support/fake-native.js`）
+
+`openApp({ durable: {} })` 会在 Node 进程里模拟 `ios/Sources/DurableStore.swift` 的协议 v1：
+- 文件存在 Node 内存里，页面重载后还在；
+- SHA-256 用 Node `crypto` 独立计算；
+- 普通保存和持久化请求按收到的顺序执行。
+
+测试里的常用操作：
+- `page.native.fault({ op, mode })`：注入回执故障；
+- `page.reloadNative()`：模拟 App 被杀后重开（原生启动恢复 → 注入正式账本 → 重新加载）；
+- `page.releaseReceipts()`：放行扣住的回执。
+
+真机上的文件系统、`F_FULLFSYNC`、WKWebView 的消息通道**不在这里验证**，见阶段报告里的真机待测清单。
+
+## 原生持久化的单元测试 · `ios/Tests/`
+
+`DurableStore` 的 XCTest，在 macOS 上运行（文件系统语义与 iOS 相同）。用独立的 XcodeGen 配置，不改正式的 `project.yml`。由 `.github/workflows/build-ipa-test.yml` 在 macOS runner 上执行：
+
+```bash
+xcodegen generate --spec ios/Tests/project-tests.yml
+xcodebuild test -project ios/Tests/XiaomiStoreTests.xcodeproj -scheme XiaomiStoreTests -destination 'platform=macOS'
+```

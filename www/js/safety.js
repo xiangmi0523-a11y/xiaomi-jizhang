@@ -188,6 +188,7 @@
       if (owner !== uid) throw fail('xm_owner', '这份快照不属于当前账号，不能恢复到本机');
       checkLedger(snap, '这份快照');
       if (!App.S.sync || !App.S.sync.uid) throw fail('xm_owner', '这台手机还没和云端同步过，不能做本机恢复');
+      if (App.S.sync.uid !== uid) throw fail('xm_owner', '这台手机上的账本不属于当前登录的账号，不能做本机恢复');
 
       const before = JSON.stringify(App.S), ts = Date.now();
       const pBatch = uid + ':p' + ts, protectDir = F.dirFor('protect', uid, ts);
