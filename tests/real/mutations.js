@@ -6,13 +6,13 @@ module.exports = [
   { name: '版本号落后时直接采用云端版本号（跳过对齐）', grep: '恰好被另一台设备恢复', edits: [['js/cloud.js', "if (Number.isInteger(m.epoch)) return m.epoch === r.epoch ? 'normal' : 'rebase';", "if (Number.isInteger(m.epoch)) { m.epoch = r.epoch; return 'normal'; }"]] },
   { name: '409 后不暂停、一直自动重试', grep: '请求头没送到服务器', edits: [['js/cloud.js', "      C.halted = 'epoch-header';", "      clearTimeout(timer); timer = setTimeout(() => C.sync(false), 300);"]] },
   { name: '换账号时不清除暂停状态', grep: '换了账号', edits: [['js/cloud.js', "if (before !== after && App.cloud) { App.cloud.halted = ''; App.cloud.staleRetry = 0; App.cloud.proto = null; }", '']] },
-  { name: '对齐前不存快照', grep: '本机快照没写成功', edits: [['js/cloud.js', '      await F.snapshot({ batch, kind, dir, content: before, uid, from, to: target, counts: cnt });   // 失败抛错：本机不动\n', '']] },
+  { name: '对齐前不存快照', grep: '本机快照没写成功', edits: [['js/cloud.js', '      await F.snapshot({ batch, kind, dir, label: info.label, content: before, uid, from, to: target, counts: cnt });   // 失败抛错：本机不动\n', '']] },
   { name: '对齐时不把未同步修改放进冲突箱', grep: '全部原样进冲突箱|静默丢掉', edits: [['js/cloud.js', "        App.conflicts.protect(batch, { src: info.src || 'rebase', from, to: target }, C.pendingChanges());", '']] },
   { name: '冲突箱（账本提交）写入失败也照样切换内存', grep: '冲突箱写不进去', edits: [['js/durable.js', "      if (!same()) throw retry();\n      try { localStorage.setItem(LS_KEY, after); }", "      if (!same()) throw retry();\n      apply();\n      try { localStorage.setItem(LS_KEY, after); }"]] },
   { name: '冲突处理不幂等', grep: '冲突箱重复处理', edits: [['js/conflicts.js', "    if (!c || c.status !== 'pending') return false;", '    if (!c) return false;']] },
   { name: '加回去时触发记账奖励', grep: '冲突箱重复处理', edits: [['js/conflicts.js', "    if (action === 'apply') applyItem(c);", "    if (action === 'apply') { applyItem(c); if (c.table === 'xm_records' && c.kind !== 'delete') App.game.rewardRecord(null, c.local); }"]] },
   { name: '整块设置不看基线（所有模块都进冲突箱）', grep: '整块设置', edits: [['js/cloud.js', 'if (!sm.base || JSON.stringify(cur[mod]) !== JSON.stringify(sm.base[mod]))', 'if (true)']] },
-  { name: '等回执期间账本被改了也照样切换（不重新计算）', grep: 'C4|两台设备并发', edits: [['js/cloud.js', 'await D.commitLedger(JSON.stringify(next), () => JSON.stringify(App.S) === before, () => { App.S = next; });', 'await D.commitLedger(JSON.stringify(next), () => true, () => { App.S = next; });']] },
+  { name: '等回执期间账本被改了也照样切换（不重新计算）', grep: 'C4|两台设备并发', edits: [['js/cloud.js', 'const same = () => { const u = SB.user(); return !!u && u.id === uid && JSON.stringify(App.S) === before; };', 'const same = () => true;']] },
   { name: '暂停后自动同步照样进行', grep: '请求头没送到服务器', edits: [['js/cloud.js', 'if (C.halted && !manual) return false;', '']] },
   // ---- Phase 2B-3：备份恢复（restore.js）----
   { name: '导出的备份仍带同步记录', grep: 'H3 修复', edits: [['js/restore.js', 'delete o.sync; delete o.conflicts; delete o.safety; delete o._manifest;', 'delete o.conflicts; delete o.safety; delete o._manifest;']] },
@@ -35,7 +35,7 @@ module.exports = [
   { name: '失败回执当成成功', grep: 'A2', edits: [['js/durable.js', "    if (r.ok !== true) { w.reject(", "    if (false) { w.reject("]] },
   { name: '编号不认识的回执也接受', grep: 'A5|A9', edits: [['js/durable.js', '    const w = wait[id];\n', '    const w = wait[id] || wait[Object.keys(wait)[0]];\n']] },
   { name: '协议版本不同也走原生路径', grep: 'A10', edits: [['js/durable.js', 'c.durableWrite === PROTO &&', 'c.durableWrite &&']] },
-  { name: '快照没确认也继续覆盖', grep: 'A2|A3', edits: [['js/cloud.js', "      await F.snapshot({ batch, kind, dir, content: before, uid, from, to: target, counts: cnt });", "      await F.snapshot({ batch, kind, dir, content: before, uid, from, to: target, counts: cnt }).catch(() => {});"]] },
+  { name: '快照没确认也继续覆盖', grep: 'A2|A3', edits: [['js/cloud.js', "      await F.snapshot({ batch, kind, dir, label: info.label, content: before, uid, from, to: target, counts: cnt });", "      await F.snapshot({ batch, kind, dir, label: info.label, content: before, uid, from, to: target, counts: cnt }).catch(() => {});"]] },
   { name: '暂存确认后就切换内存（不等提交确认）', grep: 'C1', edits: [['js/durable.js', "    verify(await call('ledgerStage', { content: after, bytes: m.bytes, sha256: m.sha256 }, mb), m, '暂存的账本');", "    verify(await call('ledgerStage', { content: after, bytes: m.bytes, sha256: m.sha256 }, mb), m, '暂存的账本');\n    apply();"]] },
   { name: '对齐直接改正式账本（不在副本上算）', grep: 'C1|A2', edits: [['js/safety.js', '    App.S = JSON.parse(base);\n', '']] },
   { name: '跨批次不去重', grep: 'C5|D2', edits: [['js/conflicts.js', '      if (!old && elsewhere.has(sig(item))) return;\n', '']] },
@@ -51,5 +51,6 @@ module.exports = [
   { name: '校验没通过的快照也允许恢复', grep: 'D5', edits: [['js/safety.js', "    if (!r.verified) throw fail(", "    if (false) throw fail("]] },
   { name: '别的账号的快照也允许恢复', grep: 'D5', edits: [['js/safety.js', "      if (owner !== uid) throw fail(", "      if (false) throw fail("]] },
   { name: '网页版快照写不下也当成成功', grep: 'D3 网页版', edits: [['js/durable.js', "    try { localStorage.setItem(SNAP_PREFIX + dir + ':' + name, JSON.stringify({ meta: fullMeta, data: content })); }\n    catch (e) {", "    try { localStorage.setItem(SNAP_PREFIX + dir + ':' + name, JSON.stringify({ meta: fullMeta, data: content })); }\n    catch (e) { return { store: 'local', dir, name, bytes: m.bytes, sha256: m.sha256 };"]] },
+  { name: '对齐重试前不再确认账号（等回执时退出登录）', grep: 'C7', edits: [['js/cloud.js', '      stillSameUser();   // 每次（重新）计算前都确认还是同一个账号', '      // stillSameUser();   // 每次（重新）计算前都确认还是同一个账号'], ['js/cloud.js', 'return !!u && u.id === uid && JSON.stringify(App.S) === before;', 'return JSON.stringify(App.S) === before;']] },
   { name: '恢复前先把未同步的修改传上去（之后被备份删掉）', grep: '静默丢掉', edits: [['js/restore.js', '      if (!fresh()) {\n', '      if (true) {\n']] }
 ];

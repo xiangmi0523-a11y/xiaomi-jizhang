@@ -264,8 +264,10 @@
     if (!F.held()) return true;
     await idle();
     C().resuming = true;
-    const ok = await C().sync(true);
-    return ok && !F.held();
+    try {
+      const ok = await C().sync(true);
+      return ok && !F.held();
+    } finally { C().resuming = false; }   // 同步没真正开始（例如正在同步）也要清掉，免得之后的自动同步擅自恢复
   };
 
   /* ---------- 界面 ---------- */

@@ -421,6 +421,7 @@
     const dir = F.dirFor(kind, uid, kind === 'resume' ? info.x : target);
 
     for (let attempt = 1; ; attempt++) {
+      stillSameUser();   // 每次（重新）计算前都确认还是同一个账号：等回执期间退出登录 / 密码锁重置 → 取消，绝不把上一个账号的数据写进本机
       const before = JSON.stringify(App.S);
       const m0 = meta(), from = Number.isInteger(m0.epoch) ? m0.epoch : null, cnt = F.counts(App.S);
       let down = 0;
@@ -448,9 +449,10 @@
         F.recordBatch(batch, { dir, kind });
         if (info.clearHold && hold) F.batchCheck(hold.batch);
       });
-      await F.snapshot({ batch, kind, dir, content: before, uid, from, to: target, counts: cnt });   // 失败抛错：本机不动
+      await F.snapshot({ batch, kind, dir, label: info.label, content: before, uid, from, to: target, counts: cnt });   // 失败抛错：本机不动
+      const same = () => { const u = SB.user(); return !!u && u.id === uid && JSON.stringify(App.S) === before; };
       try {
-        await D.commitLedger(JSON.stringify(next), () => JSON.stringify(App.S) === before, () => { App.S = next; });
+        await D.commitLedger(JSON.stringify(next), same, () => { App.S = next; });
       } catch (e) {
         if (e.code === 'xm_retry' && attempt < 3) continue;
         throw F.commitError(e);

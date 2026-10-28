@@ -237,6 +237,23 @@ test('C4 等提交回执期间用户又记了一笔：不切换内存（这笔�
   expect(await js(B, 'App.conflicts.pending().length')).toBe(5);
 });
 
+test('C7 等回执时退出登录（或密码锁重置）：这次对齐取消，不会把上一个账号的云端数据写进已经退出的本机', async ({ openApp, gw }) => {
+  const { B } = await setup(openApp, gw);
+  B.native.fault({ op: 'snapshotWrite', mode: 'hold' });
+  await B.evaluate(() => { window.App.cloud.sync(false); });
+  await expect.poll(() => B.native.held.length, { timeout: 15000 }).toBe(1);
+  // 与「忘记密码 → 清空并重置」相同：立即退出登录并清空本机账本
+  await js(B, '(App.supabase.signOutNow(), App.replaceState(null), 0)');
+  await B.releaseReceipts();
+  await B.waitForFunction(() => !window.App.cloud.busy, null, { timeout: 30000 });
+  expect(await js(B, 'App.cloud.err')).toContain('已退出登录');
+  expect(await js(B, '[App.S.records.length, App.conflicts.all().length, (App.S.sync && App.S.sync.uid) || ""]')).toEqual([0, 0, '']);
+  await js(B, 'new Promise(r => setTimeout(r, 400))');
+  const main = B.native.mainJSON();
+  expect(main.records).toEqual([]);                                                     // 正式文件里也没有上一个账号的数据
+  expect(B.native.calls.some(c => c.op === 'ledgerCommit')).toBe(false);
+});
+
 test('C5 多批次冲突和跨批次去重：同一本机修改不会在两个批次重复出现；protect 本身也去重', async ({ openApp, gw }) => {
   const { B, ids, uid } = await setup(openApp, gw);
   expect(await syncNow(B)).toBe('');                                                    // 批次 1：4 项

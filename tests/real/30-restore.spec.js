@@ -283,6 +283,7 @@ test('恢复前没同步的修改、恢复途中新记的账：都不会被静�
   expect(await notes(A)).toEqual(['午饭', '早餐', '晚饭']);
   const snap = await js(A, "(() => { const os = Object.keys(localStorage).filter(k => k.startsWith('xm_snap:')).map(k => JSON.parse(localStorage.getItem(k))).sort((a, b) => b.meta.at - a.meta.at); return JSON.parse(os[0].data).records.map(r => r.note).sort(); })()");
   expect(snap).toEqual(expect.arrayContaining(['恢复前没同步的', '恢复途中记的', '早餐（改过没同步）']));
+  expect(await js(A, "(() => { const os = Object.keys(localStorage).filter(k => k.startsWith('xm_snap:')).map(k => JSON.parse(localStorage.getItem(k)).meta).sort((a, b) => b.at - a.at); return [os[0].kind, os[0].label]; })()")).toEqual(['restore', '恢复前备份']);   // 自己恢复备份后的快照：类型和名字正确
   // 加回去 → 正常同步上云（新版本号）
   await js(A, `(App.conflicts.pending().filter(c => c.key === ${JSON.stringify(during)}).forEach(c => App.conflicts.resolve(c.id, 'apply')), 0)`);
   expect(await syncNow(A)).toBe('');
