@@ -87,7 +87,7 @@ test('版本号请求头没送到服务器（409 但版本号没变）：暂停�
   expect(gw.db.live(uid)).toEqual(['x1'].concat(await js(page, 'App.S.records.filter(r => r.note !== "备份x1").map(r => r.id)')).sort());
 });
 
-test('旧版 App（main 上的前端）：恢复前照常同步；恢复后写入被拒、提示「请更新」，不会陷入无限重试', async ({ openApp, gw, oldBaseURL }) => {
+test('旧版 App（v1.0.35 的前端）：恢复前照常同步；恢复后写入被拒、提示「请更新」，不会陷入无限重试', async ({ openApp, gw, oldBaseURL }) => {
   const page = await openApp({ time: T, cloudUrl: gw.url, baseURL: oldBaseURL });
   expect(await js(page, 'typeof App.cloud.checkEpoch')).toBe('undefined');   // 确认是旧版代码
   const email = newEmail();
