@@ -103,7 +103,7 @@ test.describe('智能预算（弹性额度 = 收入 − 固定 − 储蓄）', (
   });
 });
 
-test('资产页：「总负债」换成「总消费」= 所有账单的支出合计；净资产算法不变', async ({ openApp }) => {
+test('资产页和「我的」资产卡片：「总负债」换成「总消费」= 所有账单的支出合计；净资产算法不变', async ({ openApp }) => {
   const recs = OCT.concat([
     rec('n1', 24838, '2026-11-01'),
     rec('in', 100500, '2026-10-01', { type: 'income', cat: 'i_salary', acc: 'a_bank' }),
@@ -118,4 +118,10 @@ test('资产页：「总负债」换成「总消费」= 所有账单的支出合
   await expect(pair.nth(0)).toContainText('1,005.00');                 // 总资产：储蓄卡 1000 + 微信 5
   await expect(pair.nth(1)).toHaveText(/总消费\s*798\.38/);           // 550 + 248.38，不含收入和转账
   await expect(hero.locator('.big')).toContainText('206.62');          // 净资产 = 1005 − 支付宝欠的 798.38
+  // 「我的」页的资产卡片同样显示总消费
+  await page.evaluate(() => { App.tab = 'mine'; App.render(false); });
+  const tile = page.locator('#page .asset-card');
+  await expect(tile).toContainText('总消费 ¥798.38');
+  await expect(tile).not.toContainText('负债');
+  await expect(tile.locator('b')).toHaveText('¥206.62');
 });

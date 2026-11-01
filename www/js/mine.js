@@ -40,7 +40,7 @@
   const assetCard = () => {
     let a = 0, d = 0;
     App.S.accounts.filter(x => !x.hidden).forEach(x => { const b = App.balance(x.id); if (b >= 0) a += b; else d -= b; });
-    return `<button class="m3-tile asset-card" data-act="tab" data-t="assets"><span class="m3-l">我的资产 · 净资产</span><b>${a - d < 0 ? '-' : ''}¥${money(Math.abs(a - d))}</b><small>${App.visibleAccounts().length} 个账户 · 负债 ¥${money(d)}</small><i class="m3-ic">${MI.wallet}</i></button>`;
+    return `<button class="m3-tile asset-card" data-act="tab" data-t="assets"><span class="m3-l">我的资产 · 净资产</span><b>${a - d < 0 ? '-' : ''}¥${money(Math.abs(a - d))}</b><small>${App.visibleAccounts().length} 个账户 · 总消费 ¥${money(App.sum(App.S.records).expense)}</small><i class="m3-ic">${MI.wallet}</i></button>`;
   };
 
   // 资料卡右边淡淡的猫脸线稿
