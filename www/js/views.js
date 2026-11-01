@@ -80,7 +80,7 @@
   const homeRender = () => {
     const recs = App.recordsByMonth(H.ym);
     const sums = App.sum(recs);
-    const budHTML = App.budget.heroHTML(sums.expense);
+    const budHTML = App.budget.heroHTML(sums.expense, H.ym);
     const D = UI.deco, bal = sums.income - sums.expense;
     // 猫咪财务点评：只在看本月时出现（App.critic 只读数据）
     const ck = App.critic && H.ym === U.curYM() ? App.critic.now() : null;
@@ -320,9 +320,10 @@
     const S = App.S;
     let assets = 0, debt = 0;
     S.accounts.filter(a => !a.hidden).forEach(a => { const b = App.balance(a.id); if (b >= 0) assets += b; else debt += -b; });
+    const spentAll = App.sum(S.records).expense;   // 总消费：所有账单的支出合计（不含转账）
     const hero = `<div class="hero slim"><div class="hero-top"><div class="hero-back"><button class="icon-btn" data-act="tab" data-t="mine" aria-label="返回">${UI.icons.back}</button><h2 class="hero-title">资产</h2></div></div>
       <div class="hero-main"><div class="lbl">净资产</div><div class="big"><small>¥</small>${money(assets - debt)}</div></div>
-      <div class="hero-row two"><div><span>总资产</span><b>${money(assets)}</b></div><div><span>总负债</span><b>${money(debt)}</b></div></div></div>`;
+      <div class="hero-row two"><div><span>总资产</span><b>${money(assets)}</b></div><div><span>总消费</span><b>${money(spentAll)}</b></div></div></div>`;
     const order = ['cash', 'ewallet', 'bank', 'credit', 'invest', 'other'];
     const row = a => {
       const b = App.balance(a.id), t = App.ACC_TYPES[a.type] || App.ACC_TYPES.other;

@@ -23,6 +23,25 @@
     return `<div class="bd-bar ${B.COLORS[lv]}"><i style="width:${Math.min(100, pct).toFixed(1)}%"></i><span class="mark"></span></div>`;
   };
 
+  /* 普通月预算的「本月周期」：每月 1 号按预算模板（每月预算 S.budget.total）重新开始
+   *   - 只看本月的账单：新月份的支出从 0 算起，历史账单和统计原样保留，不做任何删除或改写
+   *   - 上个月没花完的预算不结转，超支也不顺延到下个月
+   *   - 今日建议 =（预算 − 本月今天之前已花）÷ 本月剩余天数（含今天）：前几天花多了，后面每天的建议额度自动调低
+   * 只读计算，不写任何数据（金额单位：分） */
+  B.cycle = (today = U.today()) => {
+    const ym = today.slice(0, 7), d = +today.slice(8, 10), n = U.dim(+ym.slice(0, 4), +ym.slice(5, 7));
+    const total = App.S.budget.total > 0 ? App.S.budget.total : 0;
+    let spent = 0, before = 0, todaySpent = 0;
+    App.recordsByMonth(ym).forEach(r => {
+      if (r.type !== 'expense') return;
+      spent += r.amount;
+      if (r.date < today) before += r.amount; else if (r.date === today) todaySpent += r.amount;
+    });
+    const daysLeft = n - d + 1;
+    const allow = total ? Math.max(0, Math.floor((total - before) / daysLeft)) : 0;
+    return { ym, total, spent, remain: total - spent, before, todaySpent, daysLeft, allow, left: allow - todaySpent };
+  };
+
   // 当前口径：开启智能预算时 = 本月弹性消费 / 弹性额度；否则 = 本月总支出 / 每月预算
   B.current = () => {
     if (App.smart && App.smart.on()) { const m = App.smart.month(); return { spent: m.spent, total: m.quota, smart: true }; }
@@ -32,7 +51,7 @@
   const deco = () => `<i class="bd-spark">${App.UI.deco.spark()}</i><i class="bd-paw">${App.UI.deco.pawLine()}</i>`;
 
   /* ---------- 首页顶部 ---------- */
-  B.heroHTML = spent => {
+  B.heroHTML = (spent, ym) => {
     if (App.smart && App.smart.on()) {
       const SB = App.smart, m = SB.month(), t = SB.today(), lv = B.level(m.spent, m.quota);
       const mood = SB.stressed() ? 'angry' : App.catArt.moodFor(lv);
@@ -50,12 +69,15 @@
         <span class="bd-main"><b>开启智能预算</b><span class="bd-msg">填收入和固定开销，帮你算出每天能花多少 ›</span></span>${deco()}</button>`;
     }
     const lv = B.level(spent, total), remain = total - spent;
+    // 看的是本月、还没超支：显示今天的建议消费额度（看往月时照旧显示提示语）
+    const c = (!ym || ym === U.curYM()) && lv < 2 ? B.cycle() : null;
+    const tip = c ? `今日建议 ¥${money(c.allow)}` : MSG[lv].replace(/~$/, '');
     return `<button class="bud2 lv${lv}" data-act="openBudget">
       <span class="bd-cat">${App.catArt.svg(B.catId(), { head: true, w: 52, mood: App.catArt.moodFor(lv) })}</span>
       <span class="bd-main">
         <span class="bd-row"><span>${remain >= 0 ? '本月预算剩余' : '本月已超支'} <b>¥${money(Math.abs(remain))}</b></span><em>${Math.round(spent / total * 100)}%</em></span>
         ${barHTML(spent, total, lv)}
-        <span class="bd-msg">每月预算 ¥${money(total)}　|　${MSG[lv].replace(/~$/, '')}</span>
+        <span class="bd-msg">每月预算 ¥${money(total)}　|　${tip}</span>
       </span>${deco()}</button>`;
   };
 

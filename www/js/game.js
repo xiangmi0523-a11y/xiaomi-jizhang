@@ -190,7 +190,11 @@
     const H = App.home, T = App.statsState;
     if (H) { if (H.ym === prev.slice(0, 7)) H.ym = t.slice(0, 7); if (H.sel === prev) H.sel = t; }
     if (T) { if (T.ym === prev.slice(0, 7)) T.ym = t.slice(0, 7); if (T.year === +prev.slice(0, 4)) T.year = +t.slice(0, 4); }
-    if (App.S) { if (App.mood) App.mood.decay(); if (App.smart) App.smart.run(); App.changed(); paint(); }
+    if (App.S) {
+      if (App.mood) App.mood.decay(); if (App.smart) App.smart.run(); App.changed(); paint();
+      // 跨进新的月份（每月 1 号）：预算按模板重新开始，超支提醒的等级也从新月份重新算
+      if (prev.slice(0, 7) !== t.slice(0, 7) && App.budget) App.budget.check();
+    }
   };
   setInterval(checkNewDay, 15000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) checkNewDay(); });
